@@ -1,0 +1,15 @@
+# Xbox 手柄 -> UR5e 真机(经虚拟位姿,单右臂)。
+# 速度语义: 满偏 = configs/gamepad.yaml 的 lin_speed/rot_speed(默认 0.15m/s / 0.8rad/s),
+# 再经 configs/ur5e.yaml 安全层(每拍步长/工作空间盒/偏差钳位)限幅。
+# 方向不对用 teleop_record.py --calibrate 键 1-6 翻符号,s 存回本文件。
+device: gamepad
+engage_threshold: 0.9
+save_button: B
+discard_button: A
+arms:
+  right:
+    side: right
+    pos_scale: 1.0
+    rot_scale: 1.0
+    pos_sign: [1.0, 1.0, 1.0]
+    rot_sign: [1.0, 1.0, 1.0]

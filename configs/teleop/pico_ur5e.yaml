@@ -1,0 +1,15 @@
+# Pico Ultra 4 -> UR5e 真机(scripts/auto_calibrate_ur5e.py 自动标定写入)
+# world_yaw_deg = 头显世界系->基座系的水平对齐角, 跟操作员站位/app 启动朝向绑定,
+# 换站位或重启头显 app 后需要重标!
+device: pico_ultra4
+engage_threshold: 0.9
+save_button: B
+discard_button: A
+arms:
+  right:
+    side: right
+    pos_scale: 0.8
+    rot_scale: 1.0
+    pos_sign: [1.0, 1.0, 1.0]
+    rot_sign: [1.0, 1.0, -1.0]
+    world_yaw_deg: 136.2

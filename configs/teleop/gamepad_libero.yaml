@@ -1,0 +1,15 @@
+# Xbox 手柄 -> LIBERO(经虚拟位姿,单右臂)。
+# 手柄的虚拟手部系由 backends/gamepad.py 自定义(前推=+x/左推=+y/RT=+z),
+# 与机器人系的对齐在此标定:初始全 1,方向不对用 teleop_test.py 键 1-6 翻。
+# 增益 1.0 = 虚拟手速度(configs/gamepad.yaml lin_speed)原样传递。
+device: gamepad
+engage_threshold: 0.9   # 离合键按下时 grip=1.0 > 0.9 -> ENGAGE(复用既有阈值语义)
+save_button: B
+discard_button: A
+arms:
+  right:
+    side: right
+    pos_scale: 1.0
+    rot_scale: 1.0
+    pos_sign: [1.0, 1.0, 1.0]
+    rot_sign: [1.0, 1.0, 1.0]
