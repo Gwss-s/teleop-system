@@ -1,0 +1,44 @@
+# teleop-system 环境清单(pixi)
+# 用法(新机器):
+#   curl -fsSL https://pixi.sh/install.sh | bash     # 装 pixi(一次)
+#   cd teleop-system && pixi install                 # 核心+UR5e 环境(含 ur_rtde)
+#   pixi run test                                    # 跑全部单测验证安装
+#   pixi shell                                       # 进入环境(PYTHONPATH 已配好)
+# LIBERO 仿真(重依赖,可选):
+#   pixi install -e sim
+#   pixi run -e sim install-libero                   # 拉 LIBERO-plus 并 pip -e(含 torch,较大)
+# 覆盖范围与手动步骤(Pico SDK/PC Service)见 docs/runbook.md §0。
+
+[workspace]
+name = "teleop-system"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[activation.env]
+PYTHONPATH = "$PIXI_PROJECT_ROOT"
+
+[dependencies]
+python = "3.10.*"
+numpy = ">=1.24"
+pyyaml = "*"
+pip = "*"
+
+[pypi-dependencies]
+ur-rtde = ">=1.6.5,<2"       # UR5e 控制(RTDEControl/Receive/Dashboard)
+opencv-python = "*"          # HUD 窗口/相机录制
+pygame = ">=2.1"             # Xbox 手柄后端(backends/gamepad.py)
+
+[tasks]
+test = "python tests/test_teleop_equivalence.py && python tests/test_ur5e_adapter.py && python tests/test_gamepad_backend.py"
+ur5e = "python envs/ur5e/teleop_record.py"          # pixi run ur5e -- --dry-run ...
+
+[feature.sim.pypi-dependencies]
+robosuite = "==1.4.1"
+mujoco = "==3.1.6"
+
+[feature.sim.tasks]
+install-libero = "test -d ../LIBERO-plus || git clone https://github.com/sylvestf/LIBERO-plus.git ../LIBERO-plus; pip install -e ../LIBERO-plus"
+
+[environments]
+default = { solve-group = "main" }
+sim = { features = ["sim"], solve-group = "main" }

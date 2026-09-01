@@ -1,0 +1,16 @@
+# Pico Ultra 4 -> LIBERO 腕部相机视角校准（相机扰动下用；agentview 那份 pico_libero.yaml 不动）
+# 用途：agentview 被相机扰动旋转后方向错乱时，改用腕部相机(随末端、不受 agentview 扰动)做参考。
+# 符号由 teleop_test.py 现场标定（键 1/2/3 翻 pos_sign、4/5/6 翻 rot_sign、s 存盘到本文件）。
+# 启动切换： collect_client.py / teleop_test.py 加  --teleop-config configs/teleop/pico_libero_wrist.yaml
+# 初始值 = 复制 agentview 版；标定后 s 键会覆盖下面 4 个 sign/scale 行。
+device: pico_ultra4
+engage_threshold: 0.9
+save_button: B
+discard_button: A
+arms:
+  right:
+    side: right
+    pos_scale: 4.0
+    rot_scale: 2.0
+    pos_sign: [-1.0, 1.0, 1.0]
+    rot_sign: [1.0, -1.0, -1.0]
