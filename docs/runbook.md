@@ -8,6 +8,7 @@
 ### 0.1 pixi 一键(核心框架 + UR5e,推荐)
 
 ```bash
+# Linux/macOS(Windows 学生看 docs/setup_windows.md,其余步骤两平台一致):
 curl -fsSL https://pixi.sh/install.sh | bash        # 装 pixi(一次)
 git clone git@github.com:Gwss-s/teleop-system.git && cd teleop-system
 pixi install                                        # python3.10 + numpy/yaml/cv2/ur_rtde
@@ -33,7 +34,7 @@ pixi run -e sim install-libero                      # clone LIBERO-plus + pip -e
 | LIBERO 数据集/资产 | LIBERO-plus 仓库说明 | 跑仿真任务时 |
 
 
-## 1. 每日开工(仿真遥操)
+## 1. 每日开工(Pico 链路通用准备;LIBERO 仿真部分仅 Linux)
 
 1. **操作员准备**:头显额头/头顶佩戴(摄像头必须看得见手柄)、距离传感器贴胶带、
    app 面板 "Switch w/ A Button" 关闭、面板挪出手柄指向范围;
@@ -129,7 +130,7 @@ PYTHONPATH=$PWD python envs/ur5e/teleop_record.py --dry-run --backend replay --t
 
 | 现象 | 先查 | 处置 |
 |---|---|---|
-| 手感差/延迟大 | `net_monitor.py` | 红→`reset_teleop_link.sh`+头显重启(**不要改映射**) |
+| 手感差/延迟大 | `net_monitor.py`(Windows 需 --host) | 红→`reset_teleop_link.sh`+头显重启(**不要改映射**) |
 | ping 低但输入龄高 | Service/App 层积压 | 重启头显 App→PC Service |
 | 连不上手柄 | 启动顺序 | Service→程序→头显连热点→Send On |
 | UR5e "RTDE data synchronization" 失败 | URSim 安全确认/版本 | `troubleshooting.md` #9/#10 |

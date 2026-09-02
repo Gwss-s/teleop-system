@@ -34,41 +34,45 @@ PYTHONPATH=$PWD python envs/ur5e/teleop_record.py \
 `--dry-run` 用内置一阶伺服模拟器代替真机;`--backend replay` 重放已录手柄流
 (LIBERO 采集时留下的 raw_tap npz 直接可用,同一个 L1/L2 栈)。
 
-## 2. URSim 仿真验收(真实 RTDE 接口,无真机;2026-08-31 已走通)
+## 2. URSim 仿真验收(真实 RTDE 接口,无真机;双系统同一配方)
 
 ```bash
-docker network create --subnet=192.168.56.0/24 ursim_net 2>/dev/null || true
-# 用 5.12.x(与 ur_rtde 1.6.5 兼容性经过验证;最新 5.26 会让 ur_rtde 版本解析失败);
-# 不加 --rm,安全确认状态存在容器里,stop/start 不丢
-docker run -d --name ursim --net ursim_net --ip 192.168.56.101 \
+# 用 5.12.x(与 ur_rtde 1.6.5 兼容性经过验证;最新 5.26 会让 ur_rtde 版本解析失败)。
+# 端口映射 + localhost,Windows/Linux 通用(Windows 装 Docker Desktop 后同一条命令,
+# 目录换 $HOME\ursim_programs);挂空 programs 卷 => 首屏一键确认安全配置,免密码。
+mkdir -p ~/ursim_programs
+docker run -d --name ursim -p 5900:5900 -p 6080:6080 -p 29999:29999 \
+    -p 30001-30004:30001-30004 -v ~/ursim_programs:/ursim/programs \
     universalrobots/ursim_e-series:5.12.6      # 默认型号即 UR5e
 ```
 
-**首次必做——GUI 确认安全配置**(不做的话 RTDEControl 报
-"Failed to start RTDE data synchronization";用原始 RTDE 探针能看到真实原因:
-"SafetySetup has not been confirmed yet")。浏览器开
-`http://192.168.56.101:6080/vnc.html`,在 PolyScope 里:
-1. 汉堡菜单 → Settings → Password → Safety:设一个安全密码(URSim 出厂未设,不设无法解锁);
-2. Installation → Safety → Robot Limits:输密码 → Unlock → 右下 Apply → "Apply and restart";
-3. 重启后出现 "Confirmation of applied Safety Configuration" 屏 → 点 **Confirm Safety Configuration**。
-
-之后上电+松刹车可完全脚本化(免 VNC):
+1. 浏览器开 `http://localhost:6080/vnc.html` → 弹出 "Confirmation of applied
+   Safety Configuration" → 点 **Confirm Safety Configuration**(一次即可,状态
+   随 programs 卷持久)。
+   不确认的话 RTDEControl 会报 "Failed to start RTDE data synchronization"
+   (真实原因要用原始 RTDE 探针才看得到:"SafetySetup has not been confirmed",
+   排障记录见 `troubleshooting.md` #9;老流程"设安全密码→Unlock→Apply"仅在
+   确认屏没有自动弹出时才需要)。
+2. 上电+松刹车(免 VNC,脚本化):
 
 ```bash
-python - <<'EOF'
-import dashboard_client, time
-d = dashboard_client.DashboardClient("192.168.56.101"); d.connect()
-d.powerOn(); time.sleep(5); d.brakeRelease(); time.sleep(8)
-print(d.robotmode())          # 期望 Robotmode: RUNNING
-EOF
-# 跑全链路(重放已录手柄流,或 --backend pico 用真手柄):
-PYTHONPATH=$PWD python envs/ur5e/teleop_record.py \
-    --robot-host 192.168.56.101 --backend replay --tap <raw_tap.npz> --no-gui
+python -c "import dashboard_client,time; d=dashboard_client.DashboardClient('localhost'); d.connect(); d.powerOn(); time.sleep(6); d.brakeRelease(); time.sleep(8); print(d.robotmode())"
+# 期望 Robotmode: RUNNING
 ```
 
-已验收记录(2026-08-31):真实 tap(1419 拍)驱动 URSim UR5e,机器人按流移动约 8cm+大幅转姿,
-全程无 protective stop,终态在工作空间盒内;tap 中两段录制时代的陈旧帧断流(>0.3s)
-被看门狗正确捕获(servoStop+强制重捏),即安全层在真实劣化数据上按设计工作。
+3. 跑全链路(示例流重放,或 --backend gamepad/pico 用真输入):
+
+```bash
+python envs/ur5e/teleop_record.py --robot-host localhost \
+    --backend replay --tap tests/data/sample_tap.npz --no-gui
+```
+
+已验收记录:
+- 2026-08-31(自定义子网方案):真实 tap 1419 拍驱动 URSim UR5e,机器人按流移动约
+  8cm+大幅转姿,无 protective stop,终态在工作空间盒内;tap 中两段录制时代的陈旧帧
+  断流(>0.3s)被看门狗正确捕获——安全层在真实劣化数据上按设计工作;
+- 2026-09-02(本配方,端口映射+localhost):servoL 冒烟(指令 +50mm 实走 +50mm)与
+  全链路入口重放均通过;空 programs 卷的一键安全确认验证成立。
 
 ## 3. 真机 bring-up 清单(按顺序)
 

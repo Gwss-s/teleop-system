@@ -79,6 +79,10 @@
   点 "Confirm Safety Configuration"。之后上电/松刹车全可 Dashboard 脚本化。
 - **教训**:receive 通 ≠ control 通;RTDE 层的真实报错要用原始协议探针看,
   ur_rtde 客户端会把它吞成通用超时。
+- **更简修复(2026-09-02)**:起容器时挂一个**空的 programs 卷**
+  (`-v ~/ursim_programs:/ursim/programs`),PolyScope 首屏会直接弹确认屏,
+  **一键 Confirm 即可,免设密码/解锁全流程**;确认状态随卷持久。上面的密码流程
+  仅在确认屏没有自动弹出时使用。
 
 ## #10 URSim 5.26 过新,ur_rtde 1.6.5 解析不了
 
