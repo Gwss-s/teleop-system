@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """纯遥操作 + 回合录制(本系统的主入口;无策略依赖、完全单机)。
 
-三层栈(docs/teleop_usage.md):
+三层栈(docs/architecture.md):
     PicoUltra4 (L1 设备后端) -> EEDeltaMapper (L2 yaml 映射) -> intent_to_osc (L3 OSC)
 与 collect_client.py 走同一条映射路径,手感/标定完全通用;区别只是动作 100% 来自人,
 不连策略服务器。

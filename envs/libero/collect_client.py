@@ -28,7 +28,7 @@ DAgger and the RTC paper:
     invisible in sim time, TRANSIC semantics for free;
   * B = save episode, A = discard (episode verdict).
 
-Teleop is the 3-layer stack (docs/teleop_usage.md): PicoUltra4 backend ->
+Teleop is the 3-layer stack (docs/architecture.md): PicoUltra4 backend ->
 EEDeltaMapper (yaml: configs/teleop/pico_libero.yaml, calibrated) ->
 envs/libero/teleop_adapter.intent_to_osc. A raw device tap is recorded per
 session (re-map later without re-teleoperating); disable with --no-raw-tap.
@@ -109,7 +109,7 @@ def main():
                          "再开新 epoch,消除采集顺序偏置)")
     ap.add_argument("--max-steps", type=int, default=600)
     ap.add_argument("--n-action-steps", type=int, default=10)
-    # -- teleop (3-layer stack; see docs/teleop_usage.md) --
+    # -- teleop (3-layer stack; see docs/architecture.md) --
     ap.add_argument("--teleop-config", default=TELEOP_CONFIG,
                     help="yaml mapping config (calibrated axis signs/gains)")
     ap.add_argument("--pos-scale", type=float, default=None,

@@ -1,45 +1,42 @@
-# UR5e 真机部署与分步验收
+# UR5e 遥操作实验指南(URSim 仿真 → 真机)
 
-> 对应代码:`envs/ur5e/`(adapter/入口/夹爪)+ `configs/ur5e.yaml`(机器人/安全)
-> + `configs/teleop/pico_ur5e.yaml`(映射标定)。
-> 官方依据:ur_rtde 文档(sdurobotics.gitlab.io/ur_rtde)与 XRoboToolkit 官方
-> UR5e 真机遥操实现(XR-Robotics/XRoboToolkit-Teleop-Sample-Python)。
+> 实验路线:零硬件数据流 → URSim 仿真练习 → 真机。**严格按顺序做**,每步有
+> 明确的通过标准。命令都在仓库根目录、`pixi shell` 环境内执行(Linux/Windows
+> 同一套命令;有差异的地方用 🪟 标出)。控制原理见 `architecture.md` §4。
 
-## 0. 控制结构(为什么和 LIBERO 版不同)
+## 0. 你在控制什么(2 分钟读懂)
 
-LIBERO 版 L3 输出**逐拍 OSC 增量**(超限部分被丢弃);UR5e 版 L3 维护一个
-**持久 servoL 目标**:增量积分进目标,servoL 朝目标伺服,**误差自然保留**
-——这正是官方 XRoboToolkit 真机的锚定语义。防"目标甩飞"(历史事故教训)靠三层钳制:
+主循环 25Hz:每拍把你的手部增量积分进一个**持久伺服目标**,`servoL` 让机械臂
+朝目标运动(没走完的距离下一拍继续追,不丢运动)。三层安全钳制随时生效:
 
-1. **每拍步长限幅**(手甩动/XR 跟踪跳变保护): `max_lin_step`/`max_rot_step`;
-2. **工作空间盒**: 目标位置硬钳进 `workspace` 盒;
-3. **目标-实测偏差钳位**: 目标最多领先实测 TCP `max_target_offset`(米)/
-   `max_target_rot_offset`(弧度)。
+1. **每拍步长限幅**——手甩动/头显跟踪跳变被限速;
+2. **工作空间盒**——目标位置永远出不了 `configs/ur5e.yaml` 的 `workspace` 盒;
+3. **偏差钳位**——目标最多领先机械臂实际位置 10cm/0.5rad,防止"目标甩飞"。
 
-频率架构:主循环 20-50Hz(默认 25Hz)算目标,servoL 靠 `lookahead_time`(0.1)/
-`gain`(300,官方真机值)在机器人侧 500Hz 插值。**不要把主循环提到 500Hz。**
+离合语义:**捏住 grip(手柄为按住 LB)= 移动;松手 = 机械臂钉在原地保持**。
+看门狗/保护停后必须松手重捏才能继续(防按键卡死导致失控)。
 
-离合语义(真机复查项):捏 grip=移动;**松手=目标钉在当前实测位姿并主动保持**
-(不回零、不追旧目标);看门狗/保护停后必须**松手重捏**才恢复人控。
-
-## 1. 离线验收(零硬件,改完代码必跑)
+## 1. 零硬件:重放数据流(通过标准:打印安全钳制统计)
 
 ```bash
-PYTHONPATH=$PWD python tests/test_ur5e_adapter.py     # 7 项安全钳制单测
-PYTHONPATH=$PWD python envs/ur5e/teleop_record.py \
-    --dry-run --backend replay --tap <raw_tap_XXX.npz> --fast --no-gui
-# 通过标准: 连续人控段最大单拍步长 <= max_lin_step;最大目标-实测偏差 <= max_target_offset
+pixi run demo
 ```
 
-`--dry-run` 用内置一阶伺服模拟器代替真机;`--backend replay` 重放已录手柄流
-(LIBERO 采集时留下的 raw_tap npz 直接可用,同一个 L1/L2 栈)。
+重放一段真实录制的手柄流,走完整 L1→L2→L3 到内置伺服模拟器。结束时打印:
+连续人控段最大单拍步长(应 ≤10mm,说明限幅生效)、最大目标-实测偏差
+(应 ≤100mm,说明钳位生效)。
 
-## 2. URSim 仿真验收(真实 RTDE 接口,无真机;双系统同一配方)
+## 2. URSim 仿真(通过标准:浏览器里看到机械臂跟你的输入动)
+
+URSim 是 UR 官方的仿真控制柜——对程序来说它就是一台真 UR5e(同一套 RTDE 接口),
+是上真机前的必经练习。需要 Docker。
+
+> 🪟 **Windows**:先装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+> (自动配好后端);下面命令把 `~/ursim_programs` 换成 `$HOME\ursim_programs`,
+> 其余完全一致。
 
 ```bash
-# 用 5.12.x(与 ur_rtde 1.6.5 兼容性经过验证;最新 5.26 会让 ur_rtde 版本解析失败)。
-# 端口映射 + localhost,Windows/Linux 通用(Windows 装 Docker Desktop 后同一条命令,
-# 目录换 $HOME\ursim_programs);挂空 programs 卷 => 首屏一键确认安全配置,免密码。
+# 版本用 5.12.x(5.26 与 ur_rtde 1.6.5 不兼容);端口映射 + localhost,双系统通用
 mkdir -p ~/ursim_programs
 docker run -d --name ursim -p 5900:5900 -p 6080:6080 -p 29999:29999 \
     -p 30001-30004:30001-30004 -v ~/ursim_programs:/ursim/programs \
@@ -47,85 +44,102 @@ docker run -d --name ursim -p 5900:5900 -p 6080:6080 -p 29999:29999 \
 ```
 
 1. 浏览器开 `http://localhost:6080/vnc.html` → 弹出 "Confirmation of applied
-   Safety Configuration" → 点 **Confirm Safety Configuration**(一次即可,状态
-   随 programs 卷持久)。
-   不确认的话 RTDEControl 会报 "Failed to start RTDE data synchronization"
-   (真实原因要用原始 RTDE 探针才看得到:"SafetySetup has not been confirmed",
-   排障记录见 `troubleshooting.md` #9;老流程"设安全密码→Unlock→Apply"仅在
-   确认屏没有自动弹出时才需要)。
-2. 上电+松刹车(免 VNC,脚本化):
+   Safety Configuration" → 点 **Confirm Safety Configuration**(只需一次,状态
+   持久;跳过这步会报 "Failed to start RTDE data synchronization",见 FAQ Q8);
+2. 上电+松刹车(脚本化,不用点界面):
 
 ```bash
 python -c "import dashboard_client,time; d=dashboard_client.DashboardClient('localhost'); d.connect(); d.powerOn(); time.sleep(6); d.brakeRelease(); time.sleep(8); print(d.robotmode())"
-# 期望 Robotmode: RUNNING
+# 期望输出 Robotmode: RUNNING
 ```
 
-3. 跑全链路(示例流重放,或 --backend gamepad/pico 用真输入):
+3. 遥操作(浏览器 VNC 里看机械臂动):
 
 ```bash
+# 手柄(键位见 README §4.2):
+python envs/ur5e/teleop_record.py --robot-host localhost --backend gamepad
+# VR 头显(需先完成 docs/pico_teleop_setup.md 部署):
+python envs/ur5e/teleop_record.py --robot-host localhost
+# 没有任何设备时,用示例流重放看链路:
 python envs/ur5e/teleop_record.py --robot-host localhost \
     --backend replay --tap tests/data/sample_tap.npz --no-gui
 ```
 
-已验收记录:
-- 2026-08-31(自定义子网方案):真实 tap 1419 拍驱动 URSim UR5e,机器人按流移动约
-  8cm+大幅转姿,无 protective stop,终态在工作空间盒内;tap 中两段录制时代的陈旧帧
-  断流(>0.3s)被看门狗正确捕获——安全层在真实劣化数据上按设计工作;
-- 2026-09-02(本配方,端口映射+localhost):servoL 冒烟(指令 +50mm 实走 +50mm)与
-  全链路入口重放均通过;空 programs 卷的一键安全确认验证成立。
+日常再次启动:`docker start ursim` + 上面第 2 步即可(安全确认不用重做)。
 
-## 3. 真机 bring-up 清单(按顺序)
+## 3. 真机(必须有指导教师在场)
 
-1. **前置**:示教器开 Remote Control 模式;设置 payload/TCP;外部主机与控制柜同网段
-   (`ping <控制柜IP>`);`pip install ur_rtde`(cp3.6-3.12 有轮子)。
-2. **⚠ 核对 `configs/ur5e.yaml` 的 `workspace` 盒**——默认值是示例,必须按你的
-   实际工作单元(桌面高度/围栏/人员位置)重新给定。入口启动时若当前 TCP 在盒外会
-   大字警告。
-3. **空载低速首跑**:增益减半 + 步长上限减半:
-   ```bash
-   PYTHONPATH=$PWD python envs/ur5e/teleop_record.py --robot-host <IP> \
-       --pos-scale 0.4   # yaml 默认 0.8(官方真机值)的一半
-   ```
-   自由空间画方框,验证:松手即停、B/A 裁决、Ctrl-C 干净退出(servoStop+stopScript)。
-4. **现场标定**(操作员站位与仿真不同,几乎必做)——首选引导式自动标定:
-   ```bash
-   PYTHONPATH=$PWD python scripts/auto_calibrate_ur5e.py
-   ```
-   机器人逐轴**单向**演示(平移 10cm/旋转 46°,停在终点不回位),你捏住 grip 朝
-   同方向模仿(平移≥10cm/旋转≥30°),脚本自动解出**站位偏航角 world_yaw_deg**
-   (头显世界系朝向 = app 启动瞬间头的朝向,与基座水平轴不对齐时纯符号标定无解
-   ——2026-09 现场实测偏航可达 119°)+ 逐轴符号,写回 `configs/teleop/pico_ur5e.yaml`。
-   x 轴手势是解偏航的基准,尽量水平移动。**换站位或重启头显 app 后必须重标**;
-   启动 app 时面向机器人可让偏航接近 0。个别轴不对时用手动方式微调:
-   ```bash
-   PYTHONPATH=$PWD python envs/ur5e/teleop_record.py --robot-host <IP> --calibrate
-   ```
-   键 `1/2/3` 翻 pos 符号、`4/5/6` 翻 rot 符号、`+/-`/`[/]` 调增益、`s` 存回
-   (保留 world_yaw_deg)。目标:"手往哪动,末端就往哪动"。
-5. **夹爪**(Robotiq,经控制柜 63352 端口,不打断伺服):`configs/ur5e.yaml` 改
-   `gripper.type: robotiq` → trigger 模拟量=开合。抓放泡沫块验收。
-6. **录制回路**:npz 每回合一个文件(`mode/t_wall/tcp_actual/tcp_target/q/gripper[/cam]`),
-   B=保存 A=作废;`--camera <N>` 附带 /dev/videoN 画面(320×240)。
+### 3.1 组网
 
-## 4. 安全行为一览(全部默认开启)
+网线连接 PC 与控制柜底部网口,两端同网段:
+
+- **Linux**:PC 网口设静态 `192.168.10.1/24`(或配 DHCP 服务),控制柜
+  (示教器 设置→网络)设 DHCP 或静态 `192.168.10.18`;
+- 🪟 **Windows**:控制面板 → 网络适配器 → 以太网 → IPv4 设静态
+  `192.168.10.1 / 255.255.255.0`;控制柜设静态 `192.168.10.18`。
+
+通过标准:`ping 192.168.10.18` 通。然后示教器上:开 **Remote Control** 模式、
+确认 payload/TCP 设置。控制柜 IP 写进 `configs/ur5e.yaml` 的 `robot.host`。
+
+### 3.2 安全检查(每次换场地必做,教师签字项)
+
+1. **⚠ 核对 `configs/ur5e.yaml` 的 `workspace` 盒**与实际桌面/围栏一致——
+   这是最重要的一道防线,仓库里的数值只对应标定时那张桌子。重标方法:
+   示教器切手动模式+自由驱动,拖末端扫过预期边界,同时跑:
+   ```bash
+   python scripts/workspace_calib.py 192.168.10.18
+   ```
+   把输出的 min/max 写进 yaml(各方向再留 2-3cm 余量);
+2. 急停按钮在操作员手边;首跑必须低速(`--pos-scale 0.4`)。
+
+### 3.3 标定(VR 头显;手柄用户跳过)
+
+**首次 / 换站位 / 重启头显 app 后必做**(头显世界系朝向 = app 启动瞬间头的
+朝向,斜站位下偏航可达上百度,纯翻符号无解):
+
+```bash
+python scripts/auto_calibrate_ur5e.py
+```
+
+机械臂逐轴慢速演示一小段,你捏住 grip 朝**同方向**模仿(平移≥10cm/旋转≥30°,
+凭直觉即可),脚本自动解出站位偏航角+逐轴符号,写回 `configs/teleop/pico_ur5e.yaml`。
+x 轴手势尽量水平移动(它是解偏航的基准)。**启动头显 app 时人面向机器人**,
+可让偏航角接近 0。
+
+个别轴不顺手时手动微调(不必整套重标):
+
+```bash
+python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --calibrate
+# 键 1/2/3 翻平移符号, 4/5/6 翻旋转符号, +/- 和 [/] 调增益, s 存盘
+```
+
+通过标准:"手往哪动,末端就往哪动"。
+
+### 3.4 遥操作与录制
+
+```bash
+# 首跑低速;手柄加 --backend gamepad
+python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --pos-scale 0.4
+```
+
+- 操作:grip(LB)按住=移动,松手=保持;trigger(X)=夹爪;**B=保存回合,A=作废**;
+  q 或 Ctrl-C 退出(自动 servoStop,机械臂原地停);
+- 通过标准:自由空间画一个 20cm 见方的立体方框,松手即停、无保护停;
+- 录制产物:`outputs/ur5e_demos/episode_*.npz`
+  (键:`mode/t_wall/tcp_actual/tcp_target/q/gripper[/cam]`);
+  `--camera <N>` 可附带一路 USB 相机画面;
+- 夹爪(选配 Robotiq):`configs/ur5e.yaml` 里 `gripper.type: robotiq`,
+  经控制柜 63352 端口,与伺服互不干扰。验收:抓放泡沫块。
+
+## 4. 安全行为一览(理解每个"停下来"的含义)
 
 | 触发 | 行为 | 恢复 |
 |---|---|---|
-| 手甩动/跟踪跳变 | 每拍步长限幅(方向保持) | 自动 |
-| 目标出盒 | 钳到盒边 | 自动 |
-| 机器人跟不上(卡住/限速) | 目标最多领先实测 10cm/0.5rad | 自动 |
-| 手柄流断/冻结/输入龄超 `watchdog_timeout` | servoStop + 强制脱开 | 流恢复后**松手重捏** |
-| protective/emergency stop | servoStop + 等待解锁 | 示教器解锁 → 自动 reuploadScript → **松手重捏** |
-| Ctrl-C / 异常退出 | finally: servoStop → stopScript → 断开 | — |
+| 手甩动/跟踪跳变 | 每拍步长限幅(方向不变,限速) | 自动 |
+| 目标出工作空间盒 | 钳到盒边 | 自动 |
+| 机械臂跟不上 | 目标最多领先实测 10cm/0.5rad | 自动 |
+| 手柄流断/冻结 >0.3s | 看门狗:servoStop + 强制脱开 | 流恢复后**松手重捏** |
+| protective/emergency stop | servoStop + 等待解锁 | 示教器解锁 → 程序自动恢复 → **松手重捏**(频发时见 FAQ Q10) |
+| q / Ctrl-C / 程序异常 | servoStop → stopScript → 断开 | — |
 
-已知限制:protective stop 频发代码 163 时 UR 要求等 ≥5s 再解锁;
-Dashboard 自动解锁(`unlockProtectiveStop`)未接入入口,目前走示教器手动解锁。
-
-## 5. 与 LIBERO 版的参数差异(为什么不能照搬)
-
-| 参数 | LIBERO 仿真 | UR5e 真机 | 原因 |
-|---|---|---|---|
-| pos_scale | 4.0 | 0.8 | 4.0 是"增量+OSC限幅丢弃"模式的补偿值;持久目标无丢弃,官方真机 0.8 |
-| rot_scale | 2.0 | 1.0 | 官方语义:旋转从不放大 |
-| pos_sign/rot_sign | 已标定(-1,1,1)/(1,-1,-1) | 全 1 待标定 | 符号取决于操作员站位/参考视角,现场 `--calibrate` |
-| 动作空间 | OSC [-1,1]^7 归一化 | 米/弧度度量 servoL 目标 | L2 输出本来就是度量单位,真机不需要归一化 |
+出问题先查 `docs/faq.md`。

@@ -7,7 +7,7 @@
 # LIBERO 仿真(重依赖,可选):
 #   pixi install -e sim
 #   pixi run -e sim install-libero                   # 拉 LIBERO-plus 并 pip -e(含 torch,较大)
-# 覆盖范围与手动步骤(Pico SDK/PC Service)见 docs/runbook.md §0。
+# Pico SDK/PC Service 的手动安装见 docs/pico_teleop_setup.md。
 
 [workspace]
 name = "teleop-system"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """标定入口: pure Pico -> LIBERO teleop (no policy) to validate / calibrate the mapping.
 
-Drives the LIBERO Panda EE through the 3-layer teleop stack (docs/teleop_usage.md):
+Drives the LIBERO Panda EE through the 3-layer teleop stack (docs/architecture.md):
     PicoUltra4 (backend) -> EEDeltaMapper (yaml mapping) -> intent_to_osc (OSC)
 so a feel-check here validates exactly the path collect_client.py uses.
 
