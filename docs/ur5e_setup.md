@@ -1,145 +1,192 @@
-# UR5e 遥操作实验指南(URSim 仿真 → 真机)
+# 实验指南:遥操作 UR5e(实验 1-4,唯一命令来源)
 
-> 实验路线:零硬件数据流 → URSim 仿真练习 → 真机。**严格按顺序做**,每步有
-> 明确的通过标准。命令都在仓库根目录、`pixi shell` 环境内执行(Linux/Windows
-> 同一套命令;有差异的地方用 🪟 标出)。控制原理见 `architecture.md` §4。
+> **前提:已完成 `setup.md`(实验 0)**。本文所有 `python`/`docker` 命令都在
+> "开终端 → `cd` 进项目目录 → `pixi shell`"之后执行(setup.md §0.6 的三步)。
+> 每个实验有"预期现象"和"通过标准";卡住先看括号里的 FAQ 编号(`docs/faq.md`)。
 
-## 0. 你在控制什么(2 分钟读懂)
+## 0. 你在控制什么(2 分钟读懂再动手)
 
-主循环 25Hz:每拍把你的手部增量积分进一个**持久伺服目标**,`servoL` 让机械臂
-朝目标运动(没走完的距离下一拍继续追,不丢运动)。三层安全钳制随时生效:
+程序每秒 25 拍:每拍把你的手部移动量累加进一个**伺服目标**,机械臂持续朝目标
+运动(没走完的距离下一拍继续追,不丢运动)。三层安全钳制随时生效:
 
-1. **每拍步长限幅**——手甩动/头显跟踪跳变被限速;
-2. **工作空间盒**——目标位置永远出不了 `configs/ur5e.yaml` 的 `workspace` 盒;
-3. **偏差钳位**——目标最多领先机械臂实际位置 10cm/0.5rad,防止"目标甩飞"。
+1. **每拍步长限幅**——手甩太快会被限速;
+2. **工作空间盒**——目标位置永远出不了 `configs/ur5e.yaml` 里划定的盒子;
+3. **偏差钳位**——目标最多领先机械臂实际位置 10cm,防止"目标甩飞"。
 
-离合语义:**捏住 grip(手柄为按住 LB)= 移动;松手 = 机械臂钉在原地保持**。
-看门狗/保护停后必须松手重捏才能继续(防按键卡死导致失控)。
+离合语义:**捏住 grip(手柄=按住 LB)= 机械臂动;松手 = 停在原地**。
+看门狗/保护停触发后,必须**松手再重捏**才能继续(防按键卡死失控)。
+更多设计原理见 `architecture.md`。
 
-## 1. 零硬件:重放数据流(通过标准:打印安全钳制统计)
+---
+
+## 实验 1:零硬件,重放数据流(5 分钟)
+
+不需要任何硬件。重放一段真实录制的手柄操作,走完整的三层管线到内置模拟器:
 
 ```bash
 pixi run demo
 ```
 
-重放一段真实录制的手柄流,走完整 L1→L2→L3 到内置伺服模拟器。结束时打印:
-连续人控段最大单拍步长(应 ≤10mm,说明限幅生效)、最大目标-实测偏差
-(应 ≤100mm,说明钳位生效)。
+**预期**:滚动打印若干行后,结尾出现
+`[dry-run] beats=1279 连续人控段最大单拍步长=10.0mm (上限 10mm) ... 最大目标-实测偏差=100.0mm (上限 100mm)`
+和 `saved episode_...npz`。
 
-## 2. URSim 仿真(通过标准:浏览器里看到机械臂跟你的输入动)
+**通过标准**:两个统计值都不超过括号里的上限——这就是安全钳制在工作。
+(报"找不到 python" → 没进 pixi shell,回 setup.md §0.6。)
 
-URSim 是 UR 官方的仿真控制柜——对程序来说它就是一台真 UR5e(同一套 RTDE 接口),
-是上真机前的必经练习。需要 Docker。
+---
 
-> 🪟 **Windows**:先装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-> (自动配好后端);下面命令把 `~/ursim_programs` 换成 `$HOME\ursim_programs`,
-> 其余完全一致。
+## 实验 2:手柄遥操 URSim 仿真机械臂(约 30 分钟)
 
-```bash
-# 版本用 5.12.x(5.26 与 ur_rtde 1.6.5 不兼容);端口映射 + localhost,双系统通用
-mkdir -p ~/ursim_programs
-docker run -d --name ursim -p 5900:5900 -p 6080:6080 -p 29999:29999 \
-    -p 30001-30004:30001-30004 -v ~/ursim_programs:/ursim/programs \
-    universalrobots/ursim_e-series:5.12.6      # 默认型号即 UR5e
-```
+URSim 是 UR 官方的"仿真控制柜"——对程序来说它就是一台真 UR5e。
+需要:Docker 已装好(setup.md §0.7)、Xbox 手柄。
 
-1. 浏览器开 `http://localhost:6080/vnc.html` → 弹出 "Confirmation of applied
-   Safety Configuration" → 点 **Confirm Safety Configuration**(只需一次,状态
-   持久;跳过这步会报 "Failed to start RTDE data synchronization",见 FAQ Q8);
-2. 上电+松刹车(脚本化,不用点界面):
+### 2.1 启动 URSim(首次)
+
+> 🐧 **Linux**:
+> ```bash
+> mkdir -p ~/ursim_programs
+> docker run -d --name ursim -p 5900:5900 -p 6080:6080 -p 29999:29999 -p 30001-30004:30001-30004 -v ~/ursim_programs:/ursim/programs universalrobots/ursim_e-series:5.12.6
+> ```
+
+> 🪟 **Windows**(先确认 Docker Desktop 正在运行——左下角绿色):
+> ```powershell
+> mkdir $HOME\ursim_programs
+> docker run -d --name ursim -p 5900:5900 -p 6080:6080 -p 29999:29999 -p "30001-30004:30001-30004" -v $HOME\ursim_programs:/ursim/programs universalrobots/ursim_e-series:5.12.6
+> ```
+> (`mkdir` 提示"已存在"可忽略。)
+
+**预期**:首次会下载镜像(约 1GB,几分钟),结束时打印一长串字母数字(容器 ID)。
+验证:`docker ps` 能看到一行 `ursim ... Up`。
+(报 "Cannot connect to the Docker daemon"/"error during connect" → Docker
+没在运行,见 FAQ Q16。版本必须用 5.12.6,不要换新版,见 FAQ Q8。)
+
+### 2.2 确认安全配置(仅首次,点一下)
+
+浏览器打开 `http://localhost:6080/vnc.html` → 点 **Connect** → 看到机器人
+操作界面(PolyScope),正中弹着 "Confirmation of applied Safety Configuration"
+→ 点底部的 **Confirm Safety Configuration** 按钮。完成,这个页面可以先留着。
+
+### 2.3 上电 + 松刹车(每次启动 URSim 后都要做)
+
+回到终端(pixi shell 内):
 
 ```bash
 python -c "import dashboard_client,time; d=dashboard_client.DashboardClient('localhost'); d.connect(); d.powerOn(); time.sleep(6); d.brakeRelease(); time.sleep(8); print(d.robotmode())"
-# 期望输出 Robotmode: RUNNING
 ```
 
-3. 遥操作(浏览器 VNC 里看机械臂动):
+**预期**:等约 15 秒,最后打印 `Robotmode: RUNNING`。
+
+### 2.4 手柄遥操!
+
+手柄 USB 插上,然后:
 
 ```bash
-# 手柄(键位见 README §4.2):
 python envs/ur5e/teleop_record.py --robot-host localhost --backend gamepad
-# VR 头显(需先完成 docs/pico_teleop_setup.md 部署):
-python envs/ur5e/teleop_record.py --robot-host localhost
-# 没有任何设备时,用示例流重放看链路:
-python envs/ur5e/teleop_record.py --robot-host localhost \
-    --backend replay --tap tests/data/sample_tap.npz --no-gui
 ```
 
-日常再次启动:`docker start ursim` + 上面第 2 步即可(安全确认不用重做)。
+**键位**:`左摇杆`=前后左右,`RT/LT`=上/下,`右摇杆`=俯仰/偏航,`十字键←→`=滚转;
+**按住 `LB`=离合(松手立刻停)**;按住 `X`=夹爪合;`B`=保存本回合;`A`=作废;`q`=退出。
 
-## 3. 真机(必须有指导教师在场)
+**预期**:终端打印 `[gamepad] "..." 已连接`;按住 LB 推左摇杆,浏览器 VNC 画面里
+的机械臂跟着动。**通过标准**:能画一个大致的立体方框;松开 LB 机械臂立刻停。
+(手柄没反应 → FAQ Q7;方向不顺手属正常,真机实验才需要标定。)
 
-### 3.1 组网
+### 2.5 收尾与日常再启动
 
-网线连接 PC 与控制柜底部网口,两端同网段:
+- 停止仿真:`docker stop ursim`;
+- 下次再玩:`docker start ursim` → 做 §2.3 上电 → §2.4(安全确认不用重做);
+- 录下的数据在 `outputs/ur5e_demos/`(按过 B 才有保存)。
 
-- **Linux**:PC 网口设静态 `192.168.10.1/24`(或配 DHCP 服务),控制柜
-  (示教器 设置→网络)设 DHCP 或静态 `192.168.10.18`;
-- 🪟 **Windows**:控制面板 → 网络适配器 → 以太网 → IPv4 设静态
-  `192.168.10.1 / 255.255.255.0`;控制柜设静态 `192.168.10.18`。
+---
 
-通过标准:`ping 192.168.10.18` 通。然后示教器上:开 **Remote Control** 模式、
-确认 payload/TCP 设置。控制柜 IP 写进 `configs/ur5e.yaml` 的 `robot.host`。
+## 实验 3:VR 头显遥操 URSim(约 1 小时,含设备部署)
 
-### 3.2 安全检查(每次换场地必做,教师签字项)
+1. **部署头显链路**(一次性,装好后以后跳过):按 `pico_teleop_setup.md`
+   从头做到底,最后的探针验收通过再回来;
+2. 启动 URSim 并上电(同 §2.1-§2.3,已确认过安全配置则跳过 §2.2);
+3. **按固定顺序启动**(顺序错了连不上,见 FAQ Q6):
+   ① PC Service → ② 下面的命令 → ③ 头显开 app 连 PC 的 IP → ④ Send 拨 On:
 
-1. **⚠ 核对 `configs/ur5e.yaml` 的 `workspace` 盒**与实际桌面/围栏一致——
-   这是最重要的一道防线,仓库里的数值只对应标定时那张桌子。重标方法:
-   示教器切手动模式+自由驱动,拖末端扫过预期边界,同时跑:
+```bash
+python envs/ur5e/teleop_record.py --robot-host localhost
+```
+
+**操作**:捏住手柄侧面的 **grip 键**(要捏到底)=移动,松手=停;**扳机**=夹爪;
+`B`=保存回合,`A`=作废。
+**通过标准**:同实验 2——画方框、松手即停。方向不对是正常的(下个实验标定)。
+
+---
+
+## 实验 4:UR5e 真机(必须有指导教师在场!)
+
+### 4.1 组网(接网线)
+
+网线一头插控制柜底部网口,一头插电脑:
+
+- 🐧 **Linux**:电脑网口设静态 IP `192.168.10.1`,子网掩码 `255.255.255.0`;
+- 🪟 **Windows**:控制面板 → 网络和 Internet → 网络连接 → 右键"以太网" →
+  属性 → 双击 "Internet 协议版本 4" → 选"使用下面的 IP 地址",填
+  IP `192.168.10.1`、掩码 `255.255.255.0`,确定;
+- 示教器(机械臂的平板):设置 → 网络 → 静态地址,IP 填 `192.168.10.18`,
+  掩码 `255.255.255.0`;
+- 验证(电脑终端):`ping 192.168.10.18` 有回复。(不通 → FAQ Q9。)
+
+示教器上还要:打开 **Remote Control**(远程控制)模式;确认 payload/TCP 已按
+实际末端设置(助教确认)。
+
+### 4.2 安全检查(每次换场地必做,教师确认项)
+
+1. **⚠ 核对 `configs/ur5e.yaml` 的 `workspace` 盒**与实际桌面/围栏一致——这是
+   最重要的一道防线,仓库里的数值只对应标定它时的那张桌子。重标方法:示教器切
+   手动模式+自由驱动,一人拖着末端扫过预期工作范围的边界,同时电脑上跑:
    ```bash
    python scripts/workspace_calib.py 192.168.10.18
    ```
-   把输出的 min/max 写进 yaml(各方向再留 2-3cm 余量);
-2. 急停按钮在操作员手边;首跑必须低速(`--pos-scale 0.4`)。
+   结束后把打印的 min/max 填进 `configs/ur5e.yaml`(各方向再收 2-3cm 余量);
+2. 急停按钮放在操作员手边;所有人站在工作空间盒之外。
 
-### 3.3 标定(VR 头显;手柄用户跳过)
+### 4.3 标定(VR 头显用户;手柄用户跳过)
 
-**首次 / 换站位 / 重启头显 app 后必做**(头显世界系朝向 = app 启动瞬间头的
-朝向,斜站位下偏航可达上百度,纯翻符号无解):
+**首次 / 换了站位 / 重启过头显 app,都必须重做**(头显的"世界方向"=app 启动
+瞬间你头朝的方向):
 
 ```bash
 python scripts/auto_calibrate_ur5e.py
 ```
 
-机械臂逐轴慢速演示一小段,你捏住 grip 朝**同方向**模仿(平移≥10cm/旋转≥30°,
-凭直觉即可),脚本自动解出站位偏航角+逐轴符号,写回 `configs/teleop/pico_ur5e.yaml`。
-x 轴手势尽量水平移动(它是解偏航的基准)。**启动头显 app 时人面向机器人**,
-可让偏航角接近 0。
-
-个别轴不顺手时手动微调(不必整套重标):
+流程:机械臂逐轴慢速演示一小段 → 你捏住 grip 朝**同一个方向**移动/转动手柄
+(平移≥10cm、旋转≥30°,凭直觉即可)→ 松手 → 下一轴。跑完自动把标定结果写进
+`configs/teleop/pico_ur5e.yaml`。
+小技巧:**启动头显 app 时人面向机器人**,标定会更准。
+个别轴反了不用整套重标,微调:
 
 ```bash
 python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --calibrate
-# 键 1/2/3 翻平移符号, 4/5/6 翻旋转符号, +/- 和 [/] 调增益, s 存盘
+# 键 1/2/3 翻平移方向, 4/5/6 翻旋转方向, s 保存, q 退出
 ```
 
-通过标准:"手往哪动,末端就往哪动"。
+**通过标准**:"手往哪动,机械臂末端就往哪动"。
 
-### 3.4 遥操作与录制
+### 4.4 遥操作与录制
 
 ```bash
-# 首跑低速;手柄加 --backend gamepad
+# 首跑必须低速(--pos-scale 0.4);手柄用户加 --backend gamepad
 python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --pos-scale 0.4
 ```
 
-- 操作:grip(LB)按住=移动,松手=保持;trigger(X)=夹爪;**B=保存回合,A=作废**;
-  q 或 Ctrl-C 退出(自动 servoStop,机械臂原地停);
-- 通过标准:自由空间画一个 20cm 见方的立体方框,松手即停、无保护停;
-- 录制产物:`outputs/ur5e_demos/episode_*.npz`
-  (键:`mode/t_wall/tcp_actual/tcp_target/q/gripper[/cam]`);
-  `--camera <N>` 可附带一路 USB 相机画面;
-- 夹爪(选配 Robotiq):`configs/ur5e.yaml` 里 `gripper.type: robotiq`,
-  经控制柜 63352 端口,与伺服互不干扰。验收:抓放泡沫块。
+操作与实验 2/3 完全一致(grip/LB=动,松手=停,B=保存,A=作废,q=退出——
+退出时机械臂自动刹停)。**通过标准**:自由空间画 20cm 见方的立体方框,
+松手即停、全程无保护性停止。
+录制产物:`outputs/ur5e_demos/episode_*.npz`(数据格式见 `architecture.md` §5);
+`--camera 0` 可同时录一路 USB 相机。
+夹爪(选配 Robotiq):`configs/ur5e.yaml` 里 `gripper.type` 改为 `robotiq`。
 
-## 4. 安全行为一览(理解每个"停下来"的含义)
+### 4.5 这些"停下来"都是什么意思
 
-| 触发 | 行为 | 恢复 |
+| 现象 | 含义 | 怎么继续 |
 |---|---|---|
-| 手甩动/跟踪跳变 | 每拍步长限幅(方向不变,限速) | 自动 |
-| 目标出工作空间盒 | 钳到盒边 | 自动 |
-| 机械臂跟不上 | 目标最多领先实测 10cm/0.5rad | 自动 |
-| 手柄流断/冻结 >0.3s | 看门狗:servoStop + 强制脱开 | 流恢复后**松手重捏** |
-| protective/emergency stop | servoStop + 等待解锁 | 示教器解锁 → 程序自动恢复 → **松手重捏**(频发时见 FAQ Q10) |
-| q / Ctrl-C / 程序异常 | servoStop → stopScript → 断开 | — |
-
-出问题先查 `docs/faq.md`。
+| 松手后停 | 正常:离合语义 | 重捏 grip/LB |
+| 橙色 [WATCHDOG] | 手柄数据流断了(保护) | 松手重捏;频繁出现见 FAQ Q1/Q5 |
+| 示教器弹保护性停止 | 动作太猛/撞限位 | 示教器上解锁 → 程序自动恢复 → 松手重捏;见 FAQ Q10 |
+| 终端 Ctrl-C/q 退出 | 程序刹停并断开 | 重新运行命令 |

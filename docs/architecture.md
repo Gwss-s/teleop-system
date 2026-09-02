@@ -112,7 +112,7 @@ SAVE/DISCARD。所有入口只认这四种事件——任何设备(VR grip、手
 除 4.1 的三重钳制外:**看门狗**(设备流断/冻结超时 → servoStop + 强制脱开,
 必须松手重捏——防"grip 卡在按下状态"的失控)、**protective stop 轮询**
 (触发 → 停 → 等解锁 → 自动恢复+重捏)、**离合语义**(松手 = 目标钉在当前
-实测位姿主动保持,不回零、不追旧目标)。行为总表见 `ur5e_setup.md` §4。
+实测位姿主动保持,不回零、不追旧目标)。行为总表见 `ur5e_setup.md` 实验 4.5。
 
 ### 4.7 无 IK 的取舍
 
@@ -150,7 +150,7 @@ SAVE/DISCARD。所有入口只认这四种事件——任何设备(VR grip、手
 | 组件 | 版本 | 说明 |
 |---|---|---|
 | XRoboToolkit PC Service | 1.0.0 | Linux .deb / Windows zip,官方 release |
-| xrobotoolkit_sdk(pybind) | 1.0.2 | 源码构建,见 `pico_teleop_setup.md` §1.2 |
+| xrobotoolkit_sdk(pybind) | 1.0.2 | 源码构建,见 `pico_teleop_setup.md` §1 |
 | ur_rtde | 1.6.5(PyPI) | UR5e 控制,Linux/Windows 轮子均有 |
 | URSim | e-series **5.12.6**(docker) | ⚠不要用 5.26,ur_rtde 版本解析失败 |
 | pygame | ≥2.1 | 手柄后端;2.x 映射表 Windows/Linux 一致(官方文档) |

@@ -47,11 +47,11 @@
 
 **Q8. URSim 连接报 "Failed to start RTDE data synchronization"**
 URSim 的安全配置还没确认:浏览器开 `http://localhost:6080/vnc.html`,点
-**Confirm Safety Configuration**(见 `ur5e_setup.md` §2)。另外镜像版本用
+**Confirm Safety Configuration**(见 `ur5e_setup.md` 实验 2.2)。另外镜像版本用
 5.12.x,不要用 5.26(ur_rtde 1.6.5 解析不了它的版本号)。
 
 **Q9. 真机 ping 不通控制柜**
-- 网线插控制柜底部网口;两端 IP 在同一网段(组网方法见 `ur5e_setup.md` §3);
+- 网线插控制柜底部网口;两端 IP 在同一网段(组网方法见 `ur5e_setup.md` 实验 4.1);
 - 示教器上确认已开 **Remote Control** 模式(本地模式下拒绝外部控制)。
 
 ## 真机安全
@@ -83,3 +83,14 @@ B=保存本回合,A=作废重来。
 `python scripts/input_age_probe.py --seconds 60` 测输入龄(数据从头显到 PC 的排队
 时间;期间捏几次 grip 会打印"体感接管延迟")。判读:ping 高=链路堵(Q1);
 ping 低但输入龄高=重启头显 app 和 PC Service。
+
+**Q16. docker 命令报 "Cannot connect to the Docker daemon" / "error during connect"**
+Docker 没在运行。🪟 Windows:打开 Docker Desktop,等左下角状态变绿再重试
+(它必须一直在后台开着);🐧 Linux:`sudo systemctl start docker`;若提示
+权限不够(permission denied),执行过 `sudo usermod -aG docker $USER` 后要
+**注销重新登录**才生效。
+
+**Q17. 报"找不到 python / pixi / 模块 teleop_system"**
+三步仪式没做全(`setup.md` §0.6):① 开终端 ② `cd` 进 teleop-system 目录
+③ `pixi shell`(提示符出现 `(teleop-system)` 才算进了环境)。
+刚装完 pixi 提示"无法识别 pixi" → 重新开一个终端窗口。
