@@ -3,7 +3,7 @@
 #   数值是基座坐标系(米),默认值 = 桌面安装的保守盒。
 
 robot:
-  host: 192.168.10.18       # 真机控制柜(Linux: enp132s0 直连+DHCP / Windows: 静态IP,见文档);URSim 用 localhost
+  host: 192.168.10.18       # 真机控制柜 IP(组网见 docs/ur5e_setup.md 实验 4.1);URSim 仿真填 localhost
   ctrl_hz: 25.0             # 主循环节拍(20-50Hz 区间;servoL 在机器人侧 500Hz 插值平滑)
   servo:
     lookahead_time: 0.1     # servoL 平滑窗,官方范围 [0.03, 0.2]
@@ -11,15 +11,15 @@ robot:
                             # (官方 500Hz 示例用 800;低频主循环下大 gain 会抖,先 300 起步)
 
 safety:
-  workspace:                # 伺服目标位置的硬盒钳制(基座系,米)
-    # ⚠ 临时验证盒(2026-09-01 重启后按当前 TCP(0.05,0.28,0.32)重定): 仅功能验证用!
-    #   正式使用前用 scripts/workspace_calib.py 重新标定!
+  workspace:                # 伺服目标位置的硬盒钳制(基座坐标系,米)
+    # ⚠ 这是示例值,必须用 scripts/workspace_calib.py 按你的实际工作单元重新标定!
+    #   见 docs/ur5e_setup.md 实验 4.2 与 docs/faq.md Q11。
     x: [-0.25, 0.35]
     y: [0.05, 0.55]
     z: [0.20, 0.60]
   max_lin_step: 0.010       # 每拍位移上限(m) = 0.25 m/s @25Hz(手甩动/跟踪跳变保护)
   max_rot_step: 0.06        # 每拍旋转上限(rad) = 1.5 rad/s @25Hz
-  max_target_offset: 0.10   # 目标最多领先实测 TCP 的距离(m)——防目标甩飞(2026-08 事故教训)
+  max_target_offset: 0.10   # 目标最多领先实测 TCP 的距离(m)——防目标甩飞
   max_target_rot_offset: 0.50  # 同上,姿态角(rad)
   watchdog_timeout: 0.30    # 设备流断/冻结超过此秒数 -> servoStop + 强制脱开(需松手重新捏合)
 

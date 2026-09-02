@@ -1,5 +1,5 @@
 # Pico Ultra 4 -> LIBERO / robomimic (single right arm, robosuite OSC bridge).
-# Calibrated 2026-08 (all 6 axes verified against the Panda EE):
+# Calibrated (all 6 axes verified against the Panda EE):
 #   * position mirrored through the y-z plane (agentview camera faces the robot)
 #     -> pos_sign flips world x; axis-angle (pseudovector) transforms as
 #     (wx,wy,wz)->(wx,-wy,-wz) for a consistent mirror -> rot_sign (1,-1,-1).
@@ -12,6 +12,6 @@ arms:
   right:
     side: right         # which controller drives this arm
     pos_scale: 4.0      # hand motion gain (metric in -> metric EE target out)
-    rot_scale: 2.0      # 标定原值(2026-08-25 曾临时改3.0,已还原)
+    rot_scale: 2.0      # rotation gain
     pos_sign: [-1.0, 1.0, 1.0]
     rot_sign: [1.0, -1.0, -1.0]
