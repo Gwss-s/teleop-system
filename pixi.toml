@@ -12,10 +12,13 @@
 [workspace]
 name = "teleop-system"
 channels = ["conda-forge"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "win-64"]
 
 [activation.env]
-PYTHONPATH = "$PIXI_PROJECT_ROOT"
+PYTHONPATH = "$PIXI_PROJECT_ROOT"          # unix 语法;win 见 target.win-64
+
+[target.win-64.activation.env]
+PYTHONPATH = "%PIXI_PROJECT_ROOT%"         # Windows(cmd)变量语法,pixi 官方要求
 
 [dependencies]
 python = "3.10.*"
@@ -31,6 +34,10 @@ pygame = ">=2.1"             # Xbox 手柄后端(backends/gamepad.py)
 [tasks]
 test = "python tests/test_teleop_equivalence.py && python tests/test_ur5e_adapter.py && python tests/test_gamepad_backend.py"
 ur5e = "python envs/ur5e/teleop_record.py"          # pixi run ur5e -- --dry-run ...
+demo = "python envs/ur5e/teleop_record.py --dry-run --backend replay --tap tests/data/sample_tap.npz --fast --no-gui"  # 零硬件数据流演示
+
+[feature.sim]
+platforms = ["linux-64"]     # robosuite/LIBERO 官方仅支持 Linux/macOS,不在 win 求解
 
 [feature.sim.pypi-dependencies]
 robosuite = "==1.4.1"

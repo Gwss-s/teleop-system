@@ -20,11 +20,16 @@ import argparse
 import collections
 import re
 import subprocess
+import sys
 import time
+
+IS_WIN = sys.platform == "win32"
 
 
 def find_headset_ip(dev="wlo1"):
-    """热点网卡邻居表里的第一个客户端 = 头显。"""
+    """热点网卡邻居表里的第一个客户端 = 头显(Linux `ip neigh`;Windows 请用 --host)。"""
+    if IS_WIN:
+        return None
     try:
         out = subprocess.run(["ip", "neigh", "show", "dev", dev],
                              capture_output=True, text=True, timeout=3).stdout
@@ -47,13 +52,19 @@ def main():
 
     host = args.host or find_headset_ip(args.dev)
     if not host:
-        print(f"[net] {args.dev} 上没发现客户端;头显连上热点后重试,或 --host 指定")
+        hint = "Windows 上无自动发现,请 --host 指定头显 IP(路由器管理页可查)" if IS_WIN \
+            else f"{args.dev} 上没发现客户端;头显连上热点后重试,或 --host 指定"
+        print(f"[net] {hint}")
         return
+    if IS_WIN and args.interval < 1.0:
+        args.interval = 1.0            # Windows ping 固定 1s 间隔,无亚秒参数
     print(f"[net] 监视 {host} (ping {1/args.interval:.0f}Hz), Ctrl-C 退出")
 
+    # Linux iputils: -O 报告未答复, -i 亚秒间隔;Windows: -t 持续 ping(1Hz 固定)
+    cmd = ["ping", "-t", host] if IS_WIN else ["ping", "-O", "-i", str(args.interval), host]
     proc = subprocess.Popen(
-        ["ping", "-O", "-i", str(args.interval), host],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        errors="replace", bufsize=1)
 
     N = int(60 / args.interval)               # 60 秒窗口
     rtts = collections.deque(maxlen=N)        # None=丢包
@@ -79,10 +90,13 @@ def main():
 
     try:
         for line in proc.stdout:
-            m = re.search(r"time=([\d.]+)\s*ms", line)
+            # RTT 行: Linux "time=3.1 ms" / Windows 英文 "time=3ms"、"time<1ms" /
+            # 中文 Windows "时间=3ms"、"时间<1ms" —— 统一用 =或< 后跟数字+ms 匹配
+            m = re.search(r"[=<]([\d.]+)\s*ms", line)
             if m:
                 rtts.append(float(m.group(1)))
-            elif "no answer yet" in line or "Unreachable" in line:
+            elif ("no answer yet" in line or "Unreachable" in line
+                  or "timed out" in line or "请求超时" in line or "无法访问" in line):
                 rtts.append(None)
             else:
                 continue

@@ -3,7 +3,7 @@
 #   数值是基座坐标系(米),默认值 = 桌面安装的保守盒。
 
 robot:
-  host: 192.168.10.18       # 真机控制柜(enp132s0 直连,PC 做 DHCP 服务器分的);URSim 用 192.168.56.101
+  host: 192.168.10.18       # 真机控制柜(Linux: enp132s0 直连+DHCP / Windows: 静态IP,见文档);URSim 用 localhost
   ctrl_hz: 25.0             # 主循环节拍(20-50Hz 区间;servoL 在机器人侧 500Hz 插值平滑)
   servo:
     lookahead_time: 0.1     # servoL 平滑窗,官方范围 [0.03, 0.2]

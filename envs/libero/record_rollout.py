@@ -22,10 +22,13 @@ FPS = 20
 
 def main():
     # 同 collect_client:LIBERO env 每次重建泄漏 ~100 fd,批量录制需提软上限防 EMFILE
-    import resource
-    _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    if _soft < _hard:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (_hard, _hard))
+    try:
+        import resource                 # Unix-only 模块;Windows 无此模块也无此问题
+        _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        if _soft < _hard:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (_hard, _hard))
+    except ImportError:
+        pass
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="localhost")

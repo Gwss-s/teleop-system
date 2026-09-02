@@ -16,7 +16,7 @@
 分步验收(详见 docs/ur5e_setup.md):
   1) 离线:  --dry-run --backend replay --tap <raw_tap.npz> --fast --no-gui
      (重放已录手柄流,检查目标序列连续性/限幅,零硬件)
-  2) URSim: docker 起 universalrobots/ursim_e-series,--robot-host 192.168.56.101
+  2) URSim: docker 起 universalrobots/ursim_e-series(端口映射),--robot-host localhost
   3) 真机空载低速: --pos-scale 0.4,自由空间画方框
   4) --calibrate 现场翻符号(键 1-6,s 存 configs/teleop/pico_ur5e.yaml)
   5) 加夹爪(configs/ur5e.yaml gripper.type: robotiq) -> 抓放泡沫块

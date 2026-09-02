@@ -7,11 +7,12 @@ deltas, calibration yaml, recording, takeover, tap replay) works unchanged,
 exactly like the Pico backend.
 
 Sources (facts verified, not guessed):
-  * pygame official joystick docs: Xbox 360 layout under SDL2 = left stick
-    axes 0/1, right stick 3/4, LT/RT axes 2/5, A/B/X/Y buttons 0-3, LB/RB 4/5,
-    D-pad is a hat; axis range [-1,1] with drift (deadzone required); the event
-    queue must be pumped for reads to update; hot-plug via JOYDEVICEADDED/
-    JOYDEVICEREMOVED. (pygame.org/docs/ref/joystick.html)
+  * pygame official joystick docs, "XBox 360 Controller (pygame 2.x)" table
+    (SDL2 归一化,**Windows/Linux 同一张表**): left stick axes 0/1, right stick
+    3/4, LT/RT axes 2/5, A/B/X/Y buttons 0-3, LB/RB 4/5, D-pad is a hat; axis
+    range [-1,1] with drift (deadzone required); the event queue must be pumped
+    for reads to update; hot-plug via JOYDEVICEADDED/JOYDEVICEREMOVED.
+    (pygame.org/docs/ref/joystick.html;逐轴自查: scripts/gamepad_axis_dump.py)
   * Reading/deadzone/dual-backend patterns follow lerobot's gamepad
     teleoperator (Apache-2.0); per-model axis tables follow gym-hil's
     controller_config.json (Apache-2.0); the 6-DoF binding convention follows
@@ -36,7 +37,7 @@ import numpy as np
 from ..geometry import axisangle_to_mat
 from ..types import SideState, TeleopState
 
-# pygame SDL2 下的 Xbox 360 布局(官方文档);其余型号表可在 yaml 的 models: 里加
+# pygame 2.x 的 Xbox 360 布局(官方文档,跨平台统一);其余型号表在 yaml 的 models: 里加
 DEFAULT_MODELS = {
     "default": {
         "axes": {"left_x": 0, "left_y": 1, "right_x": 3, "right_y": 4, "lt": 2, "rt": 5},

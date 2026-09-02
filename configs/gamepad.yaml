@@ -1,7 +1,10 @@
 # Xbox 手柄后端配置(teleop_system/backends/gamepad.py 读取)。
-# 轴/键序号依据 pygame 官方文档的 Xbox 360 Controller(SDL2)布局;
-# 其它型号在 models: 下加一张同结构的表(键=手柄名,joystick.get_name() 可查,
-# 启动日志会打印);Logitech F310 拨到 X(XInput)模式即等同 Xbox 360 布局。
+# 轴/键序号依据 pygame 官方文档 "XBox 360 Controller (pygame 2.x)" 表——
+# SDL2 归一化后 Windows 与 Linux 是同一张表(分平台差异是 pygame 1.x 时代的事)。
+# 型号名 joystick.get_name() 启动日志会打印;不确定时跑 scripts/gamepad_axis_dump.py
+# 逐轴自查后在 models: 下加表。Logitech F310 拨到 X(XInput)模式=Xbox 360 布局;
+# PS5 手柄("Sony Interactive Entertainment Wireless Controller")轴/键序号与
+# default 相同,自动回落即可。
 
 deadzone: 0.15        # 摇杆死区(pygame 文档注明存在漂移/噪声)
 lin_speed: 0.15       # 满偏平移速度 m/s(虚拟手速度;真机每拍步长另受安全层限幅)
@@ -15,9 +18,9 @@ bindings:             # 语义 -> 物理键(值必须是 models 表里的按钮�
   discard: a          # A=作废回合(与 Pico 一致)
 
 models:
-  default:            # Xbox 360 / Xbox 系(pygame 官方文档,SDL2/Linux)
+  default:            # Xbox 360 / Xbox 系(pygame 2.x 官方表,Windows/Linux 通用)
     axes:   {left_x: 0, left_y: 1, right_x: 3, right_y: 4, lt: 2, rt: 5}
     buttons: {a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5}
-  # "PS4 Controller":  # 示例:按 get_name() 精确匹配;序号需实机核对后填写
-  #   axes:   {left_x: 0, left_y: 1, right_x: 2, right_y: 5, lt: 3, rt: 4}
-  #   buttons: {a: 0, b: 1, x: 3, y: 2, lb: 4, rb: 5}
+  "PS4 Controller":   # pygame 2.x 官方表;⚠PS4 的 D-pad 是按钮不是 hat -> roll 不可用
+    axes:   {left_x: 0, left_y: 1, right_x: 2, right_y: 3, lt: 4, rt: 5}
+    buttons: {a: 0, b: 1, x: 2, y: 3, lb: 9, rb: 10}

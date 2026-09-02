@@ -88,10 +88,13 @@ def main():
     # LIBERO OffScreenRenderEnv 每次重建泄漏恒定 ~100 个 fd(EGL/nvidia 句柄,close 不回收;
     # 实测 envs/libero 轮转 6 次 71->571)。终端默认软上限 1024 => ~10 局后 EMFILE,
     # MuJoCo 误报 "resource not found"。软上限提到硬上限(通常 1M),千局量级无忧。
-    import resource
-    _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    if _soft < _hard:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (_hard, _hard))
+    try:
+        import resource                 # Unix-only 模块;Windows 无此模块也无此问题
+        _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        if _soft < _hard:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (_hard, _hard))
+    except ImportError:
+        pass
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="localhost")

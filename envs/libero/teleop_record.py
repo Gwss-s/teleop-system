@@ -54,10 +54,14 @@ def save_episode(buf, out_dir, ep_idx, tid):
 
 
 def main():
-    import resource                     # LIBERO env 重建泄漏 fd,提软上限(同 collect_client)
-    _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    if _soft < _hard:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (_hard, _hard))
+    # LIBERO env 重建泄漏 fd,提软上限(同 collect_client)
+    try:
+        import resource                 # Unix-only 模块;Windows 无此模块也无此问题
+        _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        if _soft < _hard:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (_hard, _hard))
+    except ImportError:
+        pass
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", default="libero_goal")
