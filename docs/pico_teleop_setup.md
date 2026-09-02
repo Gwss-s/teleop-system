@@ -118,7 +118,7 @@ adb install -g XRoboToolkit-PICO-1.1.1.apk     # 把 app 安装到头显
 
 **PC 和头显连接同一个实验室 WiFi 即可**:
 
-> WiFi 名称:`【待填:实验室 WiFi 名】`
+> WiFi 名称:`HUAWEI-6G`
 > WiFi 密码:`【待填:实验室 WiFi 密码】`
 
 然后查 PC 的 IP(记下来,头显 app 里要输它来连 PC):
