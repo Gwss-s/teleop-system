@@ -32,7 +32,7 @@ opencv-python = "*"          # HUD 窗口/相机录制
 pygame = ">=2.1"             # Xbox 手柄后端(backends/gamepad.py)
 
 [tasks]
-test = "python tests/test_teleop_equivalence.py && python tests/test_ur5e_adapter.py && python tests/test_gamepad_backend.py"
+test = "python tests/test_teleop_equivalence.py && python tests/test_ur5e_adapter.py && python tests/test_gamepad_backend.py && python tests/test_actuator_channel.py"
 ur5e = "python envs/ur5e/teleop_record.py"          # pixi run ur5e -- --dry-run ...
 demo = "python envs/ur5e/teleop_record.py --dry-run --backend replay --tap tests/data/sample_tap.npz --fast --no-gui"  # 零硬件数据流演示
 

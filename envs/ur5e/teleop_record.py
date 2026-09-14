@@ -177,12 +177,16 @@ def save_episode(buf, out_dir, ep_idx):
     )
     if buf and buf[0].get("cam") is not None:
         data["cam"] = np.stack([r["cam"] for r in buf])
+    if buf and buf[0].get("act") is not None:
+        data["actuators"] = np.stack([r["act"] for r in buf])   # (T, n) 自制执行器通道
     np.savez_compressed(path, **data)
     n_h = sum(1 for r in buf if r["mode"] == "human")
     print(f"[ur5e] saved {path.name}: {len(buf)} frames ({n_h} human)", flush=True)
 
 
-def save_mapping_yaml(cfg, path, engage_threshold):
+def save_mapping_yaml(cfg, path, engage_threshold, actuators=None):
+    """标定存盘;actuators = 原 yaml 的 actuators: 块(list 或 None),原样写回免得丢。"""
+    import yaml  # noqa: PLC0415
     ps = ", ".join(f"{v:.1f}" for v in cfg.pos_sign)
     rs = ", ".join(f"{v:.1f}" for v in cfg.rot_sign)
     txt = f"""# Pico Ultra 4 -> UR5e(teleop_record.py --calibrate 's' 键写入)
@@ -199,6 +203,9 @@ arms:
     rot_sign: [{rs}]
     world_yaw_deg: {getattr(cfg, "world_yaw_deg", 0.0):.1f}
 """
+    if actuators:
+        txt += "# 自制末端执行器通道(格式见 configs/README.md)\n"
+        txt += yaml.safe_dump({"actuators": actuators}, allow_unicode=True, sort_keys=False)
     Path(path).write_text(txt)
     print(f"[ur5e] 标定已存盘 -> {path}  pos_sign=[{ps}] rot_sign=[{rs}] "
           f"pos x{cfg.pos_scale} rot x{cfg.rot_scale}", flush=True)
@@ -311,6 +318,25 @@ def main():
         gripper.activate()
         print("[ur5e] Robotiq gripper 激活完成", flush=True)
 
+    # 自制末端执行器(舵机组): 通道值由 L2 按 configs/teleop/*.yaml 的 actuators: 算出,
+    # 驱动在 envs/ur5e/actuator.py(课程小组实现)。dry-run 也实例化,便于先用 print 验证绑定
+    actuator = None
+    acfg = rcfg.get("actuator", {}) or {}
+    n_act = len(mapper.actuators)
+    if acfg.get("type") == "custom":
+        if n_act == 0:
+            print("[ur5e] ⚠ actuator.type=custom 但 teleop yaml 没有 actuators: 通道,"
+                  "执行器不会收到任何指令", flush=True)
+        else:
+            from envs.ur5e.actuator import ServoActuator  # noqa: PLC0415
+            actuator = ServoActuator({**acfg, "dry_run": args.dry_run})
+            print(f"[ur5e] 自制执行器已接入: {n_act} 路 "
+                  f"({', '.join('+'.join(c.source) + ':' + c.mode for c in mapper.actuators)})",
+                  flush=True)
+    elif n_act:
+        print(f"[ur5e] 提示: teleop yaml 配了 {n_act} 路 actuators 但 configs/ur5e.yaml "
+              "actuator.type 不是 custom —— 通道值只录进 npz,不驱动硬件", flush=True)
+
     cv2 = cam = None
     gui = not args.no_gui
     if gui or args.camera >= 0:
@@ -339,7 +365,8 @@ def main():
     print(f"[ur5e] workspace={limits.workspace_min.tolist()}..{limits.workspace_max.tolist()} "
           f"step<={limits.max_lin_step}m/{limits.max_rot_step}rad "
           f"offset<={limits.max_target_offset}m", flush=True)
-    print("[ur5e] grip=移动 松手=保持 trigger=夹爪 | B=保存 A=作废 | Ctrl-C 退出", flush=True)
+    print("[ur5e] grip=移动 松手=保持 trigger=夹爪 | B=保存 A=作废 | Ctrl-C 退出"
+          + (" | 备用键=自制执行器" if n_act else ""), flush=True)
 
     try:
         while True:
@@ -417,6 +444,8 @@ def main():
                 robot.servo(target, lookahead, gain)
             if gripper is not None:
                 gripper.move_trigger(grip_hold)
+            if actuator is not None and intent.actuators is not None:
+                actuator.command(intent.actuators)
 
             # ---- 录制 ----
             frame = None
@@ -425,7 +454,8 @@ def main():
                 frame = cv2.resize(im, (320, 240)) if ok else None
             buf.append(dict(mode=mode, t=beat, actual=actual,
                             target=target.copy(), q=robot.q(),
-                            grip=grip_hold, cam=frame))
+                            grip=grip_hold, cam=frame,
+                            act=None if intent.actuators is None else intent.actuators.copy()))
             steps += 1
             step_mm = float(np.linalg.norm(target[:3] - prev_target[:3]))
             if mode == "human" and prev_mode == "human":
@@ -481,7 +511,8 @@ def main():
                         acfg.rot_sign[k - ord('4')] *= -1
                         print(f"[calib] rot_sign -> {[int(v) for v in acfg.rot_sign]}", flush=True)
                     elif k == ord('s'):
-                        save_mapping_yaml(acfg, args.save_config, mapper.engage_threshold)
+                        save_mapping_yaml(acfg, args.save_config, mapper.engage_threshold,
+                                          getattr(mapper, "actuators_yaml", None))
 
             if not args.fast:
                 el = time.time() - beat
@@ -493,6 +524,7 @@ def main():
         robot.servo_stop()
         for closer in (robot.close, backend.close,
                        (gripper.close if gripper is not None else lambda: None),
+                       (actuator.close if actuator is not None else lambda: None),
                        (cam.release if cam is not None else lambda: None)):
             try:
                 closer()

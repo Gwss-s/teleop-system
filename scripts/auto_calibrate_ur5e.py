@@ -208,7 +208,7 @@ def main():
     Path(TELEOP_CONFIG).rename(TELEOP_CONFIG + ".bak")
     ps = ", ".join(f"{v:.1f}" for v in pos_sign)
     rs = ", ".join(f"{v:.1f}" for v in rot_sign)
-    Path(TELEOP_CONFIG).write_text(f"""\
+    txt = f"""\
 # Pico Ultra 4 -> UR5e 真机(scripts/auto_calibrate_ur5e.py 自动标定写入)
 # world_yaw_deg = 头显世界系->基座系的水平对齐角, 跟操作员站位/app 启动朝向绑定,
 # 换站位或重启头显 app 后需要重标!
@@ -224,7 +224,12 @@ arms:
     pos_sign: [{ps}]
     rot_sign: [{rs}]
     world_yaw_deg: {yaw_deg:.1f}
-""")
+"""
+    if tcfg.get("actuators"):        # 自制执行器通道原样保留(标定不碰它)
+        txt += "# 自制末端执行器通道(格式见 configs/README.md)\n"
+        txt += yaml.safe_dump({"actuators": tcfg["actuators"]}, allow_unicode=True,
+                              sort_keys=False)
+    Path(TELEOP_CONFIG).write_text(txt)
     print(f"[标定] 已写回 {TELEOP_CONFIG}(旧文件 -> .bak). 用 teleop_record.py 验证手感.",
           flush=True)
 

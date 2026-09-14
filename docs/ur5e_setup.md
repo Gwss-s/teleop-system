@@ -209,6 +209,14 @@ python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --pos-scale 0.4
 命令加 `--camera 0` 可同时录一路 USB 相机。
 夹爪(选配 Robotiq):把 `configs/ur5e.yaml` 里 `gripper.type` 改成 `robotiq`。
 
+**自制末端执行器(舵机组)**:框架已把手柄上剩余的按键/摇杆接到 L3,你只需要
+① 在 `configs/teleop/<设备>_ur5e.yaml` 的 `actuators:` 里写"哪个键管哪路舵机"
+(格式见 `configs/README.md`),② 在 `envs/ur5e/actuator.py` 里实现 `command()`
+——把每路 [0,1] 发给你的驱动板。建议顺序:先让 `command()` 只 `print`,把
+`configs/ur5e.yaml` 的 `actuator.type` 改成 `custom`,用实验 2/3 的仿真命令按一按绑
+好的键,看打印的数值是否跟着变;对了再接串口;最后才上真机。设计原理见
+`architecture.md` 4.8。
+
 ### 4.5 这些"停下来"都是什么意思
 
 | 现象 | 含义 | 怎么继续 |

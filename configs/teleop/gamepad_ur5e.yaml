@@ -13,3 +13,11 @@ arms:
     rot_scale: 1.0
     pos_sign: [1.0, 1.0, 1.0]
     rot_sign: [1.0, 1.0, 1.0]
+
+# 自制末端执行器通道(可选)。去掉 "# " 启用;每项 = 一路舵机,顺序 = 舵机编号。
+# source 填手柄的备用输入名(默认布局可用: y / rb / back / start / guide /
+# ls_click / rs_click / dpad_y,见 configs/gamepad.yaml),或 [正向名, 负向名] 一对。
+# mode: hold=按住即到位  rate=按住/推杆按 speed(每秒走的量程比例)慢慢走  toggle=按一下切换
+# actuators:
+#   - {source: <备用输入名>, mode: toggle, init: 0.0}
+#   - {source: [<正向输入名>, <负向输入名>], mode: rate, speed: 0.5, init: 0.5}

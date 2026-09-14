@@ -27,6 +27,12 @@ Default bindings (all overridable in configs/gamepad.yaml):
   X  (hold) = gripper close   -> trigger 1.0
   B = save episode, A = discard  (与 Pico 手柄的 B/A 语义完全一致)
 
+Spare inputs -> TeleopState.aux (备用输入,标准映射不消费,留给自制末端执行器):
+  every layout button NOT bound above, as 0/1 under its layout name
+  (default Xbox: y, rb, back, start, guide, ls_click, rs_click), plus
+  dpad_y (D-pad ↑↓, -1/0/1). Rebind clutch/gripper/save/discard in yaml and
+  the freed button shows up in aux automatically.
+
 Heavy import (pygame) stays inside this file per the L1/L2 numpy-only rule.
 """
 import os
@@ -41,7 +47,8 @@ from ..types import SideState, TeleopState
 DEFAULT_MODELS = {
     "default": {
         "axes": {"left_x": 0, "left_y": 1, "right_x": 3, "right_y": 4, "lt": 2, "rt": 5},
-        "buttons": {"a": 0, "b": 1, "x": 2, "y": 3, "lb": 4, "rb": 5},
+        "buttons": {"a": 0, "b": 1, "x": 2, "y": 3, "lb": 4, "rb": 5,
+                    "back": 6, "start": 7, "guide": 8, "ls_click": 9, "rs_click": 10},
     },
 }
 DEFAULT_BINDINGS = {"clutch": "lb", "gripper": "x", "save": "b", "discard": "a"}
@@ -113,6 +120,23 @@ class GamepadBackend:
             return 0.0
         return float(self.js.get_hat(0)[0])     # D-pad 左右 = roll
 
+    def _aux(self):
+        """备用输入: 未绑定语义的按钮(0/1) + D-pad 上下。手柄型号按钮数不同,
+        布局表里有、实机没有的键跳过(pygame 越界读会抛错)。"""
+        bound = set(self.bindings.values())
+        n_btn = getattr(self.js, "get_numbuttons", lambda: None)()
+        aux = {}
+        for name, idx in self.btns.items():
+            if name in bound or (n_btn is not None and idx >= n_btn):
+                continue
+            try:
+                aux[name] = float(bool(self.js.get_button(idx)))
+            except Exception:
+                continue
+        if self.js.get_numhats() >= 1:
+            aux["dpad_y"] = float(self.js.get_hat(0)[1])
+        return aux
+
     # -- layer-1 API -----------------------------------------------------------
     def read(self):
         """One beat: pump events, integrate rates -> TeleopState."""
@@ -146,6 +170,7 @@ class GamepadBackend:
                                       grip=grip, trigger=trigger)},
             buttons={"A": self._button(self.bindings["discard"]),
                      "B": self._button(self.bindings["save"])},
+            aux=self._aux(),
             t_wall=now,
             ts_dev_ns=time.time_ns())   # 本地同步轮询:采样时刻=读取时刻,永远新鲜
 

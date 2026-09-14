@@ -16,11 +16,54 @@ verbatim from legacy/pico.py LiberoEEDeltaMapper + PicoTeleop):
 
 Config is yaml-driven (configs/teleop/*.yaml): axis signs / gains / engage
 threshold / verdict buttons / side->arm assignment. numpy-only + pyyaml.
+
+Actuator channels (自制末端执行器,可选): yaml `actuators:` 列出 N 个通道,每个
+通道从 TeleopState.aux 里取一个备用输入,按 mode 变成 [0,1] 的通道指令,进
+ControlIntent.actuators(与离合无关——夹爪跟随 trigger 只在捏合时更新是沿用官方
+语义;自制工具希望停臂时也能开合,所以每拍都更新)。不配置 = None,下游零变化。
 """
 import numpy as np
 
 from ..geometry import mat_to_axisangle
 from ..types import DISCARD, DISENGAGE, ENGAGE, SAVE, ArmIntent, ControlIntent, TakeoverEvent
+
+
+class ActuatorChannel:
+    """One actuator channel: aux input -> [0,1] command.
+
+    source: aux 名;或 [正向名, 负向名] 一对(值 = 正 − 负,两个按钮凑一根"虚拟摇杆")
+    mode:   hold   = 直接跟随输入(按钮 0/1、扳机 [0,1];摇杆 [-1,1] 会被截到 [0,1])
+            rate   = 输入当速度: 每秒走 speed×输入 (摇杆推多远走多快,按钮对=匀速)
+            toggle = 输入上升沿在 0/1 之间切换(按一下开,再按一下合)
+    init:   启动初值 [0,1]
+    """
+
+    MODES = ("hold", "rate", "toggle")
+
+    def __init__(self, source, mode="hold", speed=0.5, init=0.0):
+        self.source = tuple(source) if isinstance(source, (list, tuple)) else (source,)
+        assert len(self.source) in (1, 2), f"actuator source 只能是一个名字或一对: {source!r}"
+        assert mode in self.MODES, f"actuator mode 必须是 {self.MODES}: {mode!r}"
+        self.mode, self.speed = mode, float(speed)
+        self.value = float(np.clip(init, 0.0, 1.0))
+        self._prev_in = 0.0
+
+    def input(self, aux):
+        if len(self.source) == 2:
+            return float(aux.get(self.source[0], 0.0)) - float(aux.get(self.source[1], 0.0))
+        return float(aux.get(self.source[0], 0.0))
+
+    def step(self, aux, dt):
+        u = self.input(aux)
+        if self.mode == "hold":
+            self.value = float(np.clip(u, 0.0, 1.0))
+        elif self.mode == "rate":
+            self.value = float(np.clip(self.value + self.speed * u * dt, 0.0, 1.0))
+        else:  # toggle: 上升沿翻转
+            if u > 0.5 and self._prev_in <= 0.5:
+                self.value = 0.0 if self.value > 0.5 else 1.0
+        self._prev_in = u
+        return self.value
 
 
 class ArmConfig:
@@ -46,19 +89,24 @@ class EEDeltaMapper:
     """Poll-based: call step(TeleopState) once per beat."""
 
     def __init__(self, arms=None, engage_threshold=0.9, disengage_threshold=None,
-                 save_button="B", discard_button="A"):
+                 save_button="B", discard_button="A", actuators=None, max_dt=0.1):
         # arms: {arm_name: ArmConfig}; default = single right arm, calibrated values
         # disengage_threshold < engage_threshold gives hysteresis (anti-jitter:
         # grip noise around the threshold would otherwise storm rebase/replan).
         # None = no hysteresis (legacy-equivalent).
+        # actuators: [ActuatorChannel, ...] 自制末端执行器通道;None/[] = 不启用
+        # max_dt: rate 通道单拍积分时间上限(防长暂停后瞬移,与手柄后端同款守卫)
         self.arms = arms or {"right": ArmConfig()}
         self.engage_threshold = float(engage_threshold)
         self.disengage_threshold = (self.engage_threshold if disengage_threshold is None
                                     else float(disengage_threshold))
         self.save_button, self.discard_button = save_button, discard_button
+        self.actuators = list(actuators or [])
+        self.max_dt = float(max_dt)
         self._engaged = {a: False for a in self.arms}
         self._prev = {a: None for a in self.arms}      # (pos, rot) anchor/prev beat
         self._btn_prev = {}
+        self._t_prev = None
 
     @classmethod
     def from_yaml(cls, path, pos_scale=None, rot_scale=None):
@@ -76,11 +124,15 @@ class EEDeltaMapper:
                 pos_sign=a.get("pos_sign", (-1.0, 1.0, 1.0)),
                 rot_sign=a.get("rot_sign", (1.0, -1.0, -1.0)),
                 world_yaw_deg=a.get("world_yaw_deg", 0.0))
-        return cls(arms=arms,
-                   engage_threshold=cfg.get("engage_threshold", 0.9),
-                   disengage_threshold=cfg.get("disengage_threshold"),
-                   save_button=cfg.get("save_button", "B"),
-                   discard_button=cfg.get("discard_button", "A"))
+        actuators = [ActuatorChannel(**c) for c in (cfg.get("actuators") or [])]
+        m = cls(arms=arms,
+                engage_threshold=cfg.get("engage_threshold", 0.9),
+                disengage_threshold=cfg.get("disengage_threshold"),
+                save_button=cfg.get("save_button", "B"),
+                discard_button=cfg.get("discard_button", "A"),
+                actuators=actuators)
+        m.actuators_yaml = cfg.get("actuators")   # 原样保留,标定存盘时写回
+        return m
 
     def engaged(self, arm=None):
         """True while the human has taken over (any arm, or a specific one)."""
@@ -127,4 +179,8 @@ class EEDeltaMapper:
             events.append(TakeoverEvent(SAVE, "", ts.t_wall))
         if self._button_edge(ts.buttons, self.discard_button):
             events.append(TakeoverEvent(DISCARD, "", ts.t_wall))
+        if self.actuators:                                 # 自制执行器通道: 每拍更新,不看离合
+            dt = 0.0 if self._t_prev is None else min(max(ts.t_wall - self._t_prev, 0.0), self.max_dt)
+            intent.actuators = np.array([ch.step(ts.aux, dt) for ch in self.actuators])
+        self._t_prev = ts.t_wall
         return intent, events

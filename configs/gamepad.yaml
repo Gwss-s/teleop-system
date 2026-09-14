@@ -16,11 +16,16 @@ bindings:             # 语义 -> 物理键(值必须是 models 表里的按钮�
   gripper: x          # 按住=夹爪合
   save: b             # B=保存回合(与 Pico 一致)
   discard: a          # A=作废回合(与 Pico 一致)
+# 没绑到上面四个语义的按钮(默认布局: y/rb/back/start/guide/ls_click/rs_click)和
+# D-pad 上下(dpad_y)会作为"备用输入"进 TeleopState.aux,给自制末端执行器用——
+# 在 configs/teleop/*.yaml 的 actuators: 里按名字引用即可,这里不用改。
 
 models:
   default:            # Xbox 360 / Xbox 系(pygame 2.x 官方表,Windows/Linux 通用)
     axes:   {left_x: 0, left_y: 1, right_x: 3, right_y: 4, lt: 2, rt: 5}
-    buttons: {a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5}
-  "PS4 Controller":   # pygame 2.x 官方表;⚠PS4 的 D-pad 是按钮不是 hat -> roll 不可用
+    buttons: {a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5,
+              back: 6, start: 7, guide: 8, ls_click: 9, rs_click: 10}
+  "PS4 Controller":   # pygame 2.x 官方表;⚠PS4 的 D-pad 是按钮不是 hat -> roll/dpad_y 不可用
     axes:   {left_x: 0, left_y: 1, right_x: 2, right_y: 3, lt: 4, rt: 5}
-    buttons: {a: 0, b: 1, x: 2, y: 3, lb: 9, rb: 10}
+    buttons: {a: 0, b: 1, x: 2, y: 3, lb: 9, rb: 10,
+              back: 4, guide: 5, start: 6, ls_click: 7, rs_click: 8}

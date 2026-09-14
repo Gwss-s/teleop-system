@@ -94,3 +94,12 @@ Docker 没在运行。🪟 Windows:打开 Docker Desktop,等左下角状态变�
 三步仪式没做全(`setup.md` §0.6):① 开终端 ② `cd` 进 teleop-system 目录
 ③ `pixi shell`(提示符出现 `(teleop-system)` 才算进了环境)。
 刚装完 pixi 提示"无法识别 pixi" → 重新开一个终端窗口。
+
+**Q18. 自制末端执行器:绑好的键按了没反应**
+按顺序排查:① 键名对不对——手柄跑 `python scripts/gamepad_axis_dump.py`、Pico 跑
+`python scripts/pico_probe.py`,看 aux 一行里有没有你在 `actuators:` 写的名字(注意
+已经绑给离合/夹爪/保存/作废的键不会出现在里面);② 通道数对不对——`configs/ur5e.yaml`
+的 `actuator.channels` 要等于 `actuators:` 的条数;③ 有没有启用驱动——`actuator.type`
+是 `none` 时数值只录进 npz 不发硬件,改成 `custom`;④ 驱动写了没——启动就报
+`NotImplementedError` 说明 `envs/ur5e/actuator.py` 的 `command()` 还是空的。
+配法见 `configs/README.md`。

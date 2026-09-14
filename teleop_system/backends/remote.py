@@ -29,6 +29,7 @@ from ..types import SideState, TeleopState
 
 def _encode(ts):
     return {"t": ts.t_wall, "ts_ns": ts.ts_dev_ns, "buttons": dict(ts.buttons),
+            "aux": {k: float(v) for k, v in ts.aux.items()},
             "sides": {k: {"pos": s.pos, "rot": s.rot, "grip": s.grip, "trigger": s.trigger}
                       for k, s in ts.sides.items()}}
 
@@ -40,7 +41,8 @@ def _decode(d):
                             grip=float(v["grip"]), trigger=float(v["trigger"]))
                for k, v in d["sides"].items()},
         buttons=dict(d["buttons"]), t_wall=float(d["t"]),
-        ts_dev_ns=int(d.get("ts_ns", 0)))   # 旧发布端无此键 -> 0(向后兼容)
+        ts_dev_ns=int(d.get("ts_ns", 0)),   # 旧发布端无此键 -> 0(向后兼容)
+        aux=dict(d.get("aux", {})))         # 同上,旧发布端 -> 空
 
 
 class RemoteBackend:

@@ -158,7 +158,7 @@ def main():
     rot_scale = arm.get("rot_scale", 1.0)
     engage_threshold = tcfg.get("engage_threshold", 0.9)
     Path(TELEOP_CONFIG).rename(TELEOP_CONFIG + ".bak")
-    Path(TELEOP_CONFIG).write_text(f"""\
+    txt = f"""\
 # Pico Ultra 4 -> UR5e 真机(scripts/drag_calibrate_ur5e.py 拖动标定写入)
 # 残差 RMS {rms*1000:.1f}mm / 倾斜 {tilt_deg:.1f}°; world_yaw_deg 绑定头显 app
 # 启动朝向 -- 重启 app 后需要重标!
@@ -174,7 +174,12 @@ arms:
     pos_sign: [1.0, 1.0, 1.0]
     rot_sign: [1.0, 1.0, 1.0]
     world_yaw_deg: {yaw_deg:.1f}
-""")
+"""
+    if tcfg.get("actuators"):        # 自制执行器通道原样保留(标定不碰它)
+        txt += "# 自制末端执行器通道(格式见 configs/README.md)\n"
+        txt += yaml.safe_dump({"actuators": tcfg["actuators"]}, allow_unicode=True,
+                              sort_keys=False)
+    Path(TELEOP_CONFIG).write_text(txt)
     print(f"[标定] 已写回 {TELEOP_CONFIG}(旧文件 -> .bak)", flush=True)
 
 

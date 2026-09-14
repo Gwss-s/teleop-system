@@ -13,3 +13,12 @@ arms:
     pos_sign: [1.0, 1.0, 1.0]
     rot_sign: [1.0, 1.0, -1.0]
     world_yaw_deg: 136.2
+
+# 自制末端执行器通道(可选)。去掉 "# " 启用;每项 = 一路舵机,顺序 = 舵机编号。
+# source 填手柄的备用输入名(右手柄: right_axis_x / right_axis_y / right_axis_click;
+# 左手柄: x / y / left_grip / left_trigger / left_axis_x / left_axis_y / left_axis_click),
+# 或 [正向名, 负向名] 一对。标定脚本重写本文件时会原样保留这一块。
+# mode: hold=直接跟随输入  rate=输入当速度,每秒走 speed×输入(量程 0..1)  toggle=按一下切换
+# actuators:
+#   - {source: <备用输入名>, mode: toggle, init: 0.0}
+#   - {source: <摇杆轴名>, mode: rate, speed: 0.5, init: 0.5}

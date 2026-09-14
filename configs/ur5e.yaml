@@ -28,3 +28,11 @@ gripper:
   port: 63352               # Robotiq_Grippers URCap socket(host 同 robot.host)
   speed: 255
   force: 128
+
+actuator:                   # 自制末端执行器(舵机组);驱动由课程小组在 envs/ur5e/actuator.py 实现
+  type: none                # none | custom(custom = 每拍把通道值交给 ServoActuator.command)
+  channels: 2               # 舵机路数——必须等于 configs/teleop/*.yaml 里 actuators: 的通道数
+  # 下面是你的硬件参数,ServoActuator(cfg) 里用 cfg.get(...) 读;按实际增删:
+  port: /dev/ttyUSB0        # 串口设备(Windows 形如 COM3)
+  baud: 115200
+  angle_range: [0, 180]     # 每路 [0,1] 线性映到的舵机角度(度);各路不同就写成列表的列表

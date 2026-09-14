@@ -50,6 +50,6 @@
 | `docs/setup.md` | **实验 0**:环境准备(从打开终端教起,双系统) |
 | `docs/ur5e_setup.md` | **实验 1-4 的主指南**,所有实验命令都在这里 |
 | `docs/pico_teleop_setup.md` | 实验 3 之前:部署 VR 头显链路(一次性) |
-| `docs/faq.md` | 碰到任何问题时(17 条:现象→原因→怎么办) |
+| `docs/faq.md` | 碰到任何问题时(18 条:现象→原因→怎么办) |
 | `docs/architecture.md` | 想弄懂系统怎么设计的(读代码前) |
 | `configs/README.md` | 想改配置时:三类配置文件各管什么 |

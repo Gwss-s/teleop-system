@@ -29,6 +29,9 @@ class TapReplay:
         self._grip, self._trigger = d["grip"], d["trigger"]
         self._a, self._b = d["btn_a"], d["btn_b"]
         self._side_idx = d["side_idx"]
+        # 备用输入列(新 tap 才有;旧 tap 重放 aux 为空 dict)
+        self._aux_names = [str(s) for s in d["aux_names"]] if "aux_names" in d else []
+        self._aux = d["aux"] if "aux" in d else None
         self._i = 0                       # row cursor; one beat = len(sides) rows
 
     def __len__(self):
@@ -39,8 +42,10 @@ class TapReplay:
         if self._i + n > len(self._t):
             return None
         i = self._i
+        aux = ({k: float(v) for k, v in zip(self._aux_names, self._aux[i])}
+               if self._aux is not None else {})
         st = TeleopState(sides={}, t_wall=float(self._t[i]),
-                         buttons={"A": bool(self._a[i]), "B": bool(self._b[i])})
+                         buttons={"A": bool(self._a[i]), "B": bool(self._b[i])}, aux=aux)
         for k in range(n):
             r = i + k
             side = self.sides[int(self._side_idx[r])]

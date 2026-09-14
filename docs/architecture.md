@@ -32,8 +32,10 @@
 
 三个数据类型(全部 numpy,详见 `types.py` 源码注释):
 
-- `TeleopState`:sides(每手 pos(3)/rot(3,3)/grip/trigger)+ buttons 原始电平 + 时间戳;
+- `TeleopState`:sides(每手 pos(3)/rot(3,3)/grip/trigger)+ buttons 原始电平 + 时间戳
+  + `aux`(设备的**备用输入**:没被标准映射用掉的按键/摇杆,名→数值,留给扩展);
 - `ControlIntent`:每臂 `ArmIntent(dpos 米, drot 弧度轴角, gripper)`——**物理量,与机器人无关**;
+  另有可选 `actuators`(自制末端执行器各通道 [0,1],见 4.8);
 - `TakeoverEvent`:`ENGAGE/DISENGAGE/SAVE/DISCARD` 四种,全框架唯一的接管词汇表。
 
 **硬约束**:L1/L2 只准依赖 numpy(+yaml)。重依赖(厂商 SDK、ur_rtde、cv2)只能
@@ -121,14 +123,35 @@ SAVE/DISCARD。所有入口只认这四种事件——任何设备(VR grip、手
 的行为由机器人控制器兜底(servoL 可能保护停)。缓解:工作空间盒选在远离奇异
 的区域。
 
+### 4.8 扩展点:自制末端执行器(舵机组)
+
+课程要在末端装一个自己做的执行器。框架沿三层各留了一个口,把"手柄上剩下的
+按键/摇杆 → 每路舵机的指令"接通,**唯独硬件通信留给你写**:
+
+```
+L1  TeleopState.aux        后端把没被标准映射占用的输入全部导出(名→数值)。手柄:
+                           y/rb/back/start/…/dpad_y;Pico:摇杆、摇杆按下、X/Y、整只左手柄。
+                           改绑了离合/夹爪键,被释放的键自动出现在 aux 里
+L2  ControlIntent.actuators  yaml `actuators:` 列 N 路通道,每路指定 source(aux 名或一对
+                           名)+ mode(hold 跟随 / rate 当速度积分 / toggle 按一下切换)
+                           → 每拍算出 (N,) 的 [0,1]。与离合无关:停臂时也能开合工具
+L3  envs/ur5e/actuator.py  ServoActuator.command(values) 每拍被调用一次——把 [0,1]
+                           变成串口帧/PWM 发给你的驱动板。这是唯一要你实现的文件
+```
+
+为什么是 [0,1] 而不是角度:和 4.2 同一个理由——角度范围、正反向是硬件知识,只准
+出现在 L3(或 `configs/ur5e.yaml` 的 `actuator:` 块),上游对任何舵机都一样。
+按键怎么绑写在 `configs/README.md`;通道值随回合一起录进 npz(`actuators` 键),
+所以先不接硬件、`pixi run demo` 就能验证绑定对不对。
+
 ## 5. 录制数据格式
 
 | 流 | 文件 | 键 |
 |---|---|---|
-| UR5e 回合 | `episode_*.npz` | `mode(human/idle), t_wall, tcp_actual(6), tcp_target(6), q(6), gripper[, cam(240×320)]` |
-| 原始设备流 | `raw_tap_*.npz` | `t_wall, side_idx, pose_xr(7), grip, trigger, btn_a, btn_b, ts_dev_ns` |
+| UR5e 回合 | `episode_*.npz` | `mode(human/idle), t_wall, tcp_actual(6), tcp_target(6), q(6), gripper[, cam(240×320)][, actuators(N)]` |
+| 原始设备流 | `raw_tap_*.npz` | `t_wall, side_idx, pose_xr(7), grip, trigger, btn_a, btn_b, ts_dev_ns[, aux_names, aux]` |
 
-裁决规则:B=保存,A=作废。
+裁决规则:B=保存,A=作废。方括号里的键只在对应功能启用时出现。
 
 ## 6. 与官方 XRoboToolkit 遥操样例的设计对照
 

@@ -46,6 +46,9 @@ class TeleopState:
     t_wall: float = 0.0
     ts_dev_ns: int = 0       # 设备侧样本时间戳(ns,设备时钟域);0=后端不支持。
                              # 用途:wall−ts 的增长=上游链路排队(堵塞)的直接证据
+    aux: dict = field(default_factory=dict)      # 备用输入: 名 -> 数值(按钮 0/1、摇杆 [-1,1]、
+                             # 模拟量 [0,1])。标准映射不消费,留给自制末端执行器等扩展;
+                             # 名字按设备原生叫法,各后端模块头列出自己提供哪些
 
 
 @dataclass
@@ -65,6 +68,9 @@ class ControlIntent:
     are NOT engaged this beat (env adapter must not move them)."""
     arms: dict = field(default_factory=dict)     # arm name -> ArmIntent
     t_wall: float = 0.0
+    actuators: np.ndarray = None  # optional (n,) 自制末端执行器各通道指令,归一化 [0,1];
+                                  # None = 未配置。与离合无关(松手也能操作工具),
+                                  # L3 负责换算成舵机角度/PWM(envs/ur5e/actuator.py)
 
 
 @dataclass
