@@ -72,7 +72,7 @@ URSim 的安全配置还没确认:浏览器开 `http://localhost:6080/vnc.html`,
 grip 是 0~1 的模拟量不是开关,阈值 0.9:要**捏到底**。
 
 **Q13. 录制的数据在哪?格式是什么?**
-`outputs/` 下,npz 每回合一个文件;键与含义见 `architecture.md` §5。
+`outputs/` 下,npz 每回合一个文件;键与含义见 `architecture.md` §6。
 B=保存本回合,A=作废重来。
 
 **Q14. Windows 终端中文/符号乱码**

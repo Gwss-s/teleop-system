@@ -205,7 +205,7 @@ python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --pos-scale 0.4
 操作与实验 2/3 完全一致(grip/LB=动,松手=停,B=保存,A=作废,q=退出——退出时
 机械臂自动刹停)。
 **通过标准**:在自由空间画 20cm 见方的立体方框,松手即停、全程无保护性停止。
-录制产物:`outputs/ur5e_demos/episode_*.npz`(数据格式见 `architecture.md` §5);
+录制产物:`outputs/ur5e_demos/episode_*.npz`(数据格式见 `architecture.md` §6);
 命令加 `--camera 0` 可同时录一路 USB 相机。
 夹爪(选配 Robotiq):把 `configs/ur5e.yaml` 里 `gripper.type` 改成 `robotiq`。
 
@@ -215,7 +215,7 @@ python envs/ur5e/teleop_record.py --robot-host 192.168.10.18 --pos-scale 0.4
 ——把每路 [0,1] 发给你的驱动板。建议顺序:先让 `command()` 只 `print`,把
 `configs/ur5e.yaml` 的 `actuator.type` 改成 `custom`,用实验 2/3 的仿真命令按一按绑
 好的键,看打印的数值是否跟着变;对了再接串口;最后才上真机。设计原理见
-`architecture.md` 4.8。
+`architecture.md` 5.8。
 
 ### 4.5 这些"停下来"都是什么意思
 
