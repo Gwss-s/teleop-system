@@ -52,7 +52,12 @@ URSim 的安全配置还没确认:浏览器开 `http://localhost:6080/vnc.html`,
 
 **Q9. 真机 ping 不通控制柜**
 - 网线插控制柜底部网口;两端 IP 在同一网段(组网方法见 `ur5e_setup.md` 实验 4.1);
-- 示教器上确认已开 **Remote Control** 模式(本地模式下拒绝外部控制)。
+- 示教器上确认已开 **Remote Control** 模式(本地模式下拒绝外部控制);
+- 示教器的静态 IP 设置偶尔不生效(改完要点 Apply,必要时切 DHCP 再切回静态)。
+  备选办法:示教器改用 **DHCP**,🐧 电脑网口保持 `192.168.10.1` 并设成"共享给其他
+  计算机"(`nmcli connection modify <连接名> ipv4.method shared`,再断开重连),电脑
+  就会给控制柜分一个 `192.168.10.x` 的地址,用 `ip neigh` 查到后填进
+  `configs/ur5e.yaml` 的 `robot.host`。
 
 ## 真机安全
 
@@ -91,13 +96,13 @@ Docker 没在运行。🪟 Windows:打开 Docker Desktop,等左下角状态变�
 **注销重新登录**才生效。
 
 **Q17. 报"找不到 python / pixi / 模块 teleop_system"**
-三步仪式没做全(`setup.md` §0.6):① 开终端 ② `cd` 进 teleop-system 目录
+三步仪式没做全(`setup.md` §0.7):① 开终端 ② `cd` 进 teleop-system 目录
 ③ `pixi shell`(提示符出现 `(teleop-system)` 才算进了环境)。
 刚装完 pixi 提示"无法识别 pixi" → 重新开一个终端窗口。
 
 **Q18. 自制末端执行器:绑好的键按了没反应**
 按顺序排查:① 键名对不对——手柄跑 `python scripts/gamepad_axis_dump.py`、Pico 跑
-`python scripts/pico_probe.py`,看 aux 一行里有没有你在 `actuators:` 写的名字(注意
+`python scripts/pico_probe.py`,按下那个键,看 aux 一行里有没有你在 `actuators:` 写的名字在变(注意
 已经绑给离合/夹爪/保存/作废的键不会出现在里面);② 通道数对不对——`configs/ur5e.yaml`
 的 `actuator.channels` 要等于 `actuators:` 的条数;③ 有没有启用驱动——`actuator.type`
 是 `none` 时数值只录进 npz 不发硬件,改成 `custom`;④ 驱动写了没——启动就报

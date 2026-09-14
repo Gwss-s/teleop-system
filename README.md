@@ -31,6 +31,7 @@
 | **真机安全设计**:步长限幅、工作空间盒、目标-实测偏差钳位、看门狗 | `envs/ur5e/teleop_adapter.py` |
 | **实时控制**:servoL 伺服语义、控制频率与插值、延迟诊断 | `envs/ur5e/teleop_record.py`、`scripts/net_monitor.py` |
 | **数据采集**:回合录制、裁决(保存/作废)、raw tap 事后重映射 | `envs/ur5e/teleop_record.py` |
+| **扩展接口**:给末端加自制执行器——备用按键 → 通道指令 → 你写的驱动 | `envs/ur5e/actuator.py`、`configs/README.md` |
 
 ## 三层架构(本项目的核心思想)
 

@@ -79,7 +79,7 @@ cd ~/teleop-system           # 进入项目文件夹(路径按你实际解压位
 
 ```bash
 pixi install     # 下载并安装项目全部依赖;成功时最后一行是 "The default environment has been installed."
-pixi run test    # 运行全部自动测试;成功时看到多行 [ok],最后三行都是 "all ... passed"
+pixi run test    # 运行全部自动测试;成功时每行都以 [ok] 开头,最后一行是 "[ok] all 15 actuator channel tests passed"
 ```
 
 `pixi run test` 全部通过 = 环境完全就绪。

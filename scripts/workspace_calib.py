@@ -1,14 +1,19 @@
 """Freedrive 工作空间标定: 持续采样 TCP, 输出 min/max 供 configs/ur5e.yaml workspace 使用.
 
-用法: 示教器手动模式+自由驱动, 拖末端扫过预期工作空间边界, 本脚本 Ctrl-C 或超时结束.
+用法: python scripts/workspace_calib.py [控制柜IP] [采样秒数]
+  IP 不填就用 configs/ur5e.yaml 的 robot.host;秒数默认 120。
+  示教器切手动模式+自由驱动, 拖末端扫过预期工作空间边界, Ctrl-C 或超时结束。
 """
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import rtde_receive
+import yaml
 
-HOST = sys.argv[1] if len(sys.argv) > 1 else "192.168.10.2"
+_cfg = yaml.safe_load((Path(__file__).resolve().parents[1] / "configs/ur5e.yaml").read_text())
+HOST = sys.argv[1] if len(sys.argv) > 1 else str(_cfg["robot"]["host"])
 DURATION = float(sys.argv[2]) if len(sys.argv) > 2 else 120.0
 
 r = rtde_receive.RTDEReceiveInterface(HOST)

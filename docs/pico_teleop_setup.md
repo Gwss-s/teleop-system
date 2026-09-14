@@ -119,7 +119,7 @@ adb install -g XRoboToolkit-PICO-1.1.1.apk     # 把 app 安装到头显
 **PC 和头显连接同一个实验室 WiFi 即可**:
 
 > WiFi 名称:`HUAWEI-6G`
-> WiFi 密码:`【待填:实验室 WiFi 密码】`
+> WiFi 密码:课上发放(问助教),不写在仓库里
 
 然后查 PC 的 IP(记下来,头显 app 里要输它来连 PC):
 
@@ -151,7 +151,7 @@ python scripts/net_monitor.py --host <头显IP> --no-gui    # 持续测 PC 到�
 **部署验收**(在第②步跑这个;在 pixi shell 里):
 
 ```bash
-python scripts/pico_probe.py    # 打印手柄位姿和 grip 值;挥手柄数字变化、捏 grip 值升到 1.0 = 链路通
+python scripts/pico_probe.py    # 打印手柄位姿/grip 和备用输入(aux);挥手柄数字变化、捏 grip 值升到 1.0 = 链路通
 ```
 
 ✅ 到这里部署完成。**回 `ur5e_setup.md` 实验 3** 开始 VR 遥操。
@@ -166,8 +166,13 @@ g = xrt.get_right_grip()                    # 右 grip,0.0~1.0 模拟量(阈值 
 t = xrt.get_right_trigger()                 # 右扳机(夹爪)
 a = xrt.get_A_button(); b = xrt.get_B_button()   # 右手柄 A/B 键
 ts = xrt.get_time_stamp_ns()                # 采样时间戳
+ax = xrt.get_right_axis()                   # 右摇杆 [x, y],各 -1~1(备用输入,自制执行器可用)
+x = xrt.get_X_button(); y = xrt.get_Y_button()   # 左手柄 X/Y 键(备用输入)
 xrt.close()
 ```
+
+项目代码不直接调这些函数——`teleop_system/backends/pico_ultra4.py` 已把它们读成
+`TeleopState`(位姿/grip/trigger/A/B)和 `TeleopState.aux`(其余备用输入,名字见该文件头)。
 
 ## 6. 本页已知坑速查
 
